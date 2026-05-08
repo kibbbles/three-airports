@@ -4,7 +4,7 @@ import zipfile
 import requests
 from config import START_YEAR, END_YEAR, END_MONTH, RAW_DATA_PATH
 
-OUTPUT_FOLDER = os.path.join(RAW_DATA_PATH, "zips")
+OUTPUT_FOLDER = os.path.join(RAW_DATA_PATH, "ontime")
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 BASE_URL = (

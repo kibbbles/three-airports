@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from config import RAW_DATA_PATH, PROCESSED_DATA_PATH, AIRPORTS
 
-ZIPS_DIR = Path(RAW_DATA_PATH) / "zips"
+ZIPS_DIR = Path(RAW_DATA_PATH) / "ontime"
 OUT_PATH = Path(PROCESSED_DATA_PATH) / "ontime_dmv.parquet"
 
 COLUMNS = [
