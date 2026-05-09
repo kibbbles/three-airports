@@ -110,7 +110,7 @@ for airport, station_id in STATIONS.items():
 
     frames = []
     print(f"{'='*50}")
-    print(f"{airport}  ({station_id})  →  {out_path.name}")
+    print(f"{airport}  ({station_id})  ->  {out_path.name}")
     print(f"{'='*50}")
 
     for year in years:
@@ -127,7 +127,7 @@ for airport, station_id in STATIONS.items():
 
     combined = pd.concat(frames, ignore_index=True)
     print(f"\n  Total: {len(combined):,} rows")
-    print(f"  Date range: {combined['DATE'].min()} → {combined['DATE'].max()}")
+    print(f"  Date range: {combined['DATE'].min()} -> {combined['DATE'].max()}")
     print(f"  Saving to {out_path} ...")
     combined.to_parquet(out_path, index=False, engine="pyarrow")
     print(f"  Parquet size: {out_path.stat().st_size / 1e6:.1f} MB\n")
