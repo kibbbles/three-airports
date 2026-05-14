@@ -27,16 +27,14 @@ function lateRateColor(rate: number, alpha = 0.85): string {
   return `rgba(${lerp(34,239,t)},${lerp(197,68,t)},${lerp(94,68,t)},${alpha})`;
 }
 
-// ── arc data types ───────────────────────────────────────────────
-interface DomArc {
+// ── unified arc type ─────────────────────────────────────────────
+interface Arc {
   startLat: number; startLng: number;
-  endLat: number;   endLng: number;
-  late_rate: number; label: string;
-}
-interface IntlArc {
-  startLat: number; startLng: number;
-  endLat: number;   endLng: number;
-  paxFrac: number;  label: string;
+  endLat:   number; endLng:   number;
+  kind:      'dom' | 'intl';
+  late_rate: number;
+  paxFrac:   number;
+  label:     string;
 }
 interface IntlRoute {
   origin: string; dest: string;
@@ -46,104 +44,76 @@ interface IntlRoute {
   d_lat: number; d_lon: number;
 }
 
-// ── init globes ──────────────────────────────────────────────────
-const domGlobe: GlobeInstance  = new Globe(mount)
+// ── load data ───────────────────────────────────────────────────
+const [domRes, intlRes] = await Promise.all([
+  fetch(`${base}/data/routes.geojson`),
+  fetch(`${base}/data/intl_routes.json`),
+]);
+const domGeo: FeatureCollection = await domRes.json();
+const intlRoutes: IntlRoute[]   = await intlRes.json();
+
+// ── build unified arc array ──────────────────────────────────────
+const domArcs: Arc[] = domGeo.features.map((f: Feature) => {
+  const coords = (f.geometry as LineString).coordinates;
+  const p      = f.properties as Record<string, number & string>;
+  return {
+    startLat: coords[0][1], startLng: coords[0][0],
+    endLat:   coords[1][1], endLng:   coords[1][0],
+    kind: 'dom', late_rate: p.late_rate, paxFrac: 0,
+    label: `${p.origin} → ${p.dest}`,
+  };
+});
+
+const maxPax = Math.max(...intlRoutes.map(r => r.total_passengers));
+const intlArcs: Arc[] = intlRoutes.map(r => ({
+  startLat: r.o_lat, startLng: r.o_lon,
+  endLat:   r.d_lat, endLng:   r.d_lon,
+  kind: 'intl' as const, late_rate: 0, paxFrac: r.total_passengers / maxPax,
+  label: `${r.origin} → ${r.dest} (${r.dest_city})`,
+}));
+
+const allArcs: Arc[] = [...domArcs, ...intlArcs];
+
+// ── single globe instance ────────────────────────────────────────
+const globe: GlobeInstance = new Globe(mount)
   .width(mount.clientWidth)
   .height(mount.clientHeight)
   .backgroundColor('#0f1117')
   .globeImageUrl(`${base}/earth-night.jpg`)
   .atmosphereColor('#4e9af1')
   .atmosphereAltitude(0.12)
-  .pointOfView({ lat: 38.95, lng: -50, altitude: 1.8 }, 0);
-
-const intlGlobe: GlobeInstance = new Globe(mount)
-  .width(mount.clientWidth)
-  .height(mount.clientHeight)
-  .backgroundColor('rgba(0,0,0,0)')
-  .globeImageUrl('')
-  .showAtmosphere(false)
-  .pointOfView({ lat: 38.95, lng: -50, altitude: 1.8 }, 0);
-
-// ── load data ───────────────────────────────────────────────────
-const [domRes, intlRes] = await Promise.all([
-  fetch(`${base}/data/routes.geojson`),
-  fetch(`${base}/data/intl_routes.json`),
-]);
-const domGeo: FeatureCollection  = await domRes.json();
-const intlRoutes: IntlRoute[]    = await intlRes.json();
-
-// ── build arc arrays ─────────────────────────────────────────────
-const domArcs: DomArc[] = domGeo.features.map((f: Feature) => {
-  const coords = (f.geometry as LineString).coordinates;
-  const p      = f.properties as Record<string, number & string>;
-  return {
-    startLat: coords[0][1], startLng: coords[0][0],
-    endLat:   coords[1][1], endLng:   coords[1][0],
-    late_rate: p.late_rate,
-    label: `${p.origin} → ${p.dest}`,
-  };
-});
-
-const maxPax = Math.max(...intlRoutes.map(r => r.total_passengers));
-const intlArcs: IntlArc[] = intlRoutes.map(r => ({
-  startLat: r.o_lat, startLng: r.o_lon,
-  endLat:   r.d_lat, endLng:   r.d_lon,
-  paxFrac:  r.total_passengers / maxPax,
-  label: `${r.origin} → ${r.dest} (${r.dest_city})`,
-}));
-
-// ── domestic layer ───────────────────────────────────────────────
-domGlobe
-  .arcsData(domArcs)
+  .pointOfView({ lat: 38.95, lng: -50, altitude: 1.8 }, 0)
+  .arcsData(allArcs)
   .arcStartLat('startLat').arcStartLng('startLng')
   .arcEndLat('endLat').arcEndLng('endLng')
   .arcColor((d: object) => {
-    const { late_rate } = d as DomArc;
-    return [lateRateColor(late_rate, 0.25), lateRateColor(late_rate, 0.9)];
+    const arc = d as Arc;
+    if (arc.kind === 'dom') {
+      return [lateRateColor(arc.late_rate, 0.25), lateRateColor(arc.late_rate, 0.9)];
+    }
+    const a = 0.15 + arc.paxFrac * 0.45;
+    return [`rgba(78,154,241,${a * 0.3})`, `rgba(78,154,241,${a})`];
   })
-  .arcAltitude(0.12)
-  .arcStroke(0.4)
-  .arcDashLength(0.5)
-  .arcDashGap(0.5)
-  .arcDashAnimateTime(3000);
-
-// ── international layer ───────────────────────────────────────────
-intlGlobe
-  .arcsData(intlArcs)
-  .arcStartLat('startLat').arcStartLng('startLng')
-  .arcEndLat('endLat').arcEndLng('endLng')
-  .arcColor((d: object) => {
-    const alpha = 0.15 + (d as IntlArc).paxFrac * 0.45;
-    return [`rgba(78,154,241,${alpha * 0.3})`, `rgba(78,154,241,${alpha})`];
+  .arcAltitude((d: object) => {
+    const arc = d as Arc;
+    return arc.kind === 'dom' ? 0.12 : 0.25 + arc.paxFrac * 0.25;
   })
-  .arcAltitude((d: object) => 0.25 + (d as IntlArc).paxFrac * 0.25)
-  .arcStroke((d: object) => 0.3 + (d as IntlArc).paxFrac * 1.2)
-  .arcDashLength(0.4)
-  .arcDashGap(0.6)
-  .arcDashAnimateTime(5000);
+  .arcStroke((d: object) => {
+    const arc = d as Arc;
+    return arc.kind === 'dom' ? 0.4 : 0.3 + arc.paxFrac * 1.2;
+  })
+  .arcDashLength((d: object) => (d as Arc).kind === 'dom' ? 0.5 : 0.4)
+  .arcDashGap((d: object) => (d as Arc).kind === 'dom' ? 0.5 : 0.6)
+  .arcDashAnimateTime((d: object) => (d as Arc).kind === 'dom' ? 3000 : 5000);
 
-// ── sync camera ───────────────────────────────────────────────────
-domGlobe.controls().addEventListener('change', () => {
-  intlGlobe.pointOfView(domGlobe.pointOfView());
-});
-intlGlobe.controls().addEventListener('change', () => {
-  domGlobe.pointOfView(intlGlobe.pointOfView());
-});
-
-// ── auto-rotate ───────────────────────────────────────────────────
-domGlobe.controls().autoRotate      = true;
-domGlobe.controls().autoRotateSpeed = 0.4;
-intlGlobe.controls().autoRotate      = true;
-intlGlobe.controls().autoRotateSpeed = 0.4;
-
-// disable zoom so mouse wheel scrolls the page instead of zooming the globe
-domGlobe.controls().enableZoom  = false;
-intlGlobe.controls().enableZoom = false;
+// ── controls ─────────────────────────────────────────────────────
+globe.controls().autoRotate      = true;
+globe.controls().autoRotateSpeed = 0.4;
+globe.controls().enableZoom      = false;
 
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
-  domGlobe.width(mount.clientWidth).height(mount.clientHeight);
-  intlGlobe.width(mount.clientWidth).height(mount.clientHeight);
+  globe.width(mount.clientWidth).height(mount.clientHeight);
 });
 </script>
 
