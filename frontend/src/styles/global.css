@@ -1,0 +1,68 @@
+:root {
+  --bg:          #0f1117;
+  --surface:     #1a1d27;
+  --text:        #e8e8e8;
+  --muted:       #888;
+  --iad:         #4e9af1;
+  --dca:         #f97316;
+  --bwi:         #22c55e;
+  --late-low:    #22c55e;
+  --late-high:   #ef4444;
+  --font-prose:  'Inter', system-ui, sans-serif;
+  --font-mono:   'JetBrains Mono', 'Fira Code', monospace;
+  --max-width:   740px;
+  --wide-width:  1100px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-prose);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Prose column */
+.prose {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Full-bleed sections (globe, dashboard) */
+.full-bleed {
+  width: 100%;
+  max-width: var(--wide-width);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+h1, h2, h3 {
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+}
+
+h1 { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 1rem; }
+h2 { font-size: 1.5rem; margin: 3rem 0 0.75rem; }
+h3 { font-size: 1.125rem; margin: 2rem 0 0.5rem; }
+
+p { margin-bottom: 1.25rem; color: var(--text); }
+
+a { color: var(--iad); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.muted { color: var(--muted); font-size: 0.875rem; }
+
+/* Airport colour chips */
+.tag-iad { color: var(--iad); font-weight: 600; }
+.tag-dca { color: var(--dca); font-weight: 600; }
+.tag-bwi { color: var(--bwi); font-weight: 600; }
+
+section { padding: 4rem 0; }
+section + section { border-top: 1px solid #2a2d3a; }

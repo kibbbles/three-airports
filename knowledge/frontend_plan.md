@@ -36,13 +36,14 @@ Tampa for a cruise. The data confirms and complicates things you already felt.
   - **International** (from `t100_intl_dmv.parquet` → `intl_routes.json`): IAD/DCA/BWI
     outbound international routes, arc thickness scaled by passenger volume, muted color
     to visually separate from domestic
-- IAD→TSA arc highlighted with a label ("my route to Taiwan")
 - Tagline overlay: *"Ten years of flights. Three airports. One DMV kid."*
 
 ### Section 1 — Introduction
 
 - 2–3 paragraphs: personal context, the three airports and their personalities
   (IAD = international/United hub, DCA = perimeter-restricted/American hub, BWI = Southwest/value)
+- Note: IAD→Taiwan always connects through ORD or NRT — nonstop doesn't exist.
+  That's part of the story: IAD is the gateway even when the final leg isn't nonstop.
 - Stat cards pulled from `airport_summary.json`:
   - Total flights per airport (2015–2025)
   - Overall late rate
