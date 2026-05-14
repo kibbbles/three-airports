@@ -1,14 +1,185 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import GlobeHero from '../components/GlobeHero.astro';
+import summary from '@data/airport_summary.json';
+
+const airports = [
+  { code: 'IAD', name: 'Dulles',  color: 'var(--iad)', ...summary.IAD },
+  { code: 'DCA', name: 'Reagan',  color: 'var(--dca)', ...summary.DCA },
+  { code: 'BWI', name: 'BWI',     color: 'var(--bwi)', ...summary.BWI },
+] as const;
+
+function pct(n: number) { return (n * 100).toFixed(1) + '%'; }
+function fmt(n: number) { return n.toLocaleString(); }
 ---
+
 <Layout>
   <GlobeHero />
 
+  <!-- ── Section 1: Introduction ─────────────────────────────────── -->
   <section>
     <div class="prose">
-      <h2>Introduction</h2>
-      <p>Content coming soon.</p>
+      <h2>Three airports, one metro area</h2>
+      <p>
+        The Washington DC area is served by three commercial airports within 40 miles of each
+        other — IAD, DCA, and BWI — each with a distinct personality, carrier mix, and delay
+        profile. I grew up in the DMV and have flown out of all three. This is what a decade
+        of flight data actually shows about them.
+      </p>
+      <p>
+        The dataset covers <strong>2,823,044 domestic flights</strong> from January 2015 through
+        January 2026, joined with NOAA weather records, T-100 capacity data, and DB1B fare
+        surveys. International routes (passenger volume only) come from T-100 international
+        segment filings.
+      </p>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="cards full-bleed">
+      {airports.map(ap => (
+        <div class="card">
+          <div class="card-code" style={`color: ${ap.color}`}>{ap.code}</div>
+          <div class="card-name">{ap.name}</div>
+          <div class="card-stats">
+            <div class="stat">
+              <span class="stat-value">{fmt(ap.total_flights)}</span>
+              <span class="stat-label">flights</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">{pct(ap.late_rate)}</span>
+              <span class="stat-label">late rate</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">{pct(ap.cancel_rate)}</span>
+              <span class="stat-label">cancelled</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ── Section 2: Delay heatmaps ──────────────────────────────── -->
+  <section>
+    <div class="prose">
+      <h2>When delays happen</h2>
+      <p>
+        Morning flights are more reliable. Summer and winter are the worst seasons.
+        Evening departures in July and August represent the worst combination across
+        all three airports — particularly at BWI.
+      </p>
+      <p class="muted">Heatmap visualization coming soon.</p>
+    </div>
+  </section>
+
+  <!-- ── Section 3: Route explorer ─────────────────────────────── -->
+  <section>
+    <div class="prose">
+      <h2>Route explorer</h2>
+      <p>
+        217 domestic routes across the three airports, filtered and linked.
+        Slice by airport, k-means cluster, or carrier to see which routes
+        are reliably on time and which have persistent problems.
+      </p>
+      <p class="muted">Interactive Crossfilter dashboard coming soon.</p>
+    </div>
+  </section>
+
+  <!-- ── Section 4: Anomalous routes ───────────────────────────── -->
+  <section>
+    <div class="prose">
+      <h2>Routes that keep misbehaving</h2>
+      <p>
+        Isolation Forest flagged 87 routes that are persistently anomalous post-2022.
+        BWI has the most (42), followed by DCA (30) and IAD (15).
+        BWI→ATL has been flagged every year for five consecutive years.
+      </p>
+      <p class="muted">Anomaly dot-plot coming soon.</p>
+    </div>
+  </section>
+
+  <!-- ── Section 5: Forecasts ──────────────────────────────────── -->
+  <section>
+    <div class="prose">
+      <h2>What the models say</h2>
+      <p>
+        Prophet forecasts late rate through 2026. BWI has run consistently above
+        its pre-2022 trend — averaging +4 percentage points above forecast since 2022.
+        IAD and DCA are tracking close to expected.
+      </p>
+      <p class="muted">Forecast chart coming soon.</p>
+    </div>
+  </section>
+
+  <!-- ── Section 6: Limitations ────────────────────────────────── -->
+  <section>
+    <div class="prose">
+      <h2>Limitations</h2>
+      <ul>
+        <li>No international delay data — BTS on-time performance covers domestic flights only. International route arcs on the globe show passenger volume, not delays.</li>
+        <li>No international fare data — DB1B is domestic only by design.</li>
+        <li>NOAA weather coverage ends August 2025; 4.5% of rows have no weather features.</li>
+        <li>DB1B is a 10% ticket sample — fare figures are estimates.</li>
+      </ul>
     </div>
   </section>
 </Layout>
+
+<style>
+  /* Stat cards */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 2.5rem;
+    padding: 0 1.5rem;
+  }
+  @media (max-width: 640px) {
+    .cards { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #2a2d3a;
+  }
+  .card-code {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .card-name {
+    color: var(--muted);
+    font-size: 0.875rem;
+    margin: 0.25rem 0 1.25rem;
+  }
+  .card-stats {
+    display: flex;
+    gap: 1.25rem;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+  .stat-value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #fff;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  ul {
+    padding-left: 1.25rem;
+    color: var(--text);
+  }
+  ul li {
+    margin-bottom: 0.6rem;
+  }
+</style>
