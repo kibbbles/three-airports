@@ -1,0 +1,204 @@
+---
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<div id="globe-hero">
+  <div id="globe-mount" data-base={base}></div>
+  <div class="overlay">
+    <h1>Three DMV Airports</h1>
+    <p class="tagline">Ten years of flights. Three airports. One DMV kid.</p>
+    <p class="scroll-hint">scroll to explore ↓</p>
+  </div>
+</div>
+
+<script>
+import Globe from 'globe.gl';
+
+const mount = document.getElementById('globe-mount') as HTMLElement;
+const base  = mount.dataset.base ?? '';
+
+// ── colour helpers ──────────────────────────────────────────────
+function lerpHex(a: number, b: number, t: number) {
+  return Math.round(a + (b - a) * t);
+}
+function lateRateColor(rate: number, alpha = 0.85): string {
+  const t  = Math.min(rate / 0.38, 1);
+  const r  = lerpHex(34,  239, t);
+  const g  = lerpHex(197,  68, t);
+  const b  = lerpHex(94,   68, t);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ── init globe ──────────────────────────────────────────────────
+const globe = Globe()
+  (mount)
+  .width(mount.clientWidth)
+  .height(mount.clientHeight)
+  .backgroundColor('#0f1117')
+  .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+  .atmosphereColor('#4e9af1')
+  .atmosphereAltitude(0.12)
+  // point of view: centred on IAD
+  .pointOfView({ lat: 38.95, lng: -50, altitude: 1.8 }, 0);
+
+// ── load data ───────────────────────────────────────────────────
+const [domRes, intlRes] = await Promise.all([
+  fetch(`${base}/data/routes.geojson`),
+  fetch(`${base}/data/intl_routes.json`),
+]);
+const domGeo: GeoJSON.FeatureCollection = await domRes.json();
+const intlRoutes: IntlRoute[]           = await intlRes.json();
+
+interface IntlRoute {
+  origin: string; dest: string;
+  dest_city: string; dest_country: string;
+  total_passengers: number;
+  o_lat: number; o_lon: number;
+  d_lat: number; d_lon: number;
+}
+
+// ── domestic arcs ────────────────────────────────────────────────
+const domArcs = domGeo.features.map(f => ({
+  startLat:  (f.geometry as GeoJSON.LineString).coordinates[0][1],
+  startLng:  (f.geometry as GeoJSON.LineString).coordinates[0][0],
+  endLat:    (f.geometry as GeoJSON.LineString).coordinates[1][1],
+  endLng:    (f.geometry as GeoJSON.LineString).coordinates[1][0],
+  late_rate: (f.properties as Record<string, number>).late_rate,
+  label:     `${(f.properties as Record<string, string>).origin} → ${(f.properties as Record<string, string>).dest}`,
+}));
+
+// ── international arcs ────────────────────────────────────────────
+const maxPax = Math.max(...intlRoutes.map(r => r.total_passengers));
+const intlArcs = intlRoutes.map(r => ({
+  startLat: r.o_lat, startLng: r.o_lon,
+  endLat:   r.d_lat, endLng:   r.d_lon,
+  paxFrac:  r.total_passengers / maxPax,
+  label:    `${r.origin} → ${r.dest} (${r.dest_city})`,
+}));
+
+// ── render layers ────────────────────────────────────────────────
+globe
+  // domestic layer — colored by late rate
+  .arcsData(domArcs)
+  .arcStartLat('startLat').arcStartLng('startLng')
+  .arcEndLat('endLat').arcEndLng('endLng')
+  .arcColor((d: object) => {
+    const a = d as { late_rate: number };
+    return [lateRateColor(a.late_rate, 0.3), lateRateColor(a.late_rate, 0.9)];
+  })
+  .arcAltitude(0.12)
+  .arcStroke(0.4)
+  .arcDashLength(0.5)
+  .arcDashGap(0.5)
+  .arcDashAnimateTime(3000);
+
+// Second pass for international arcs via custom layer using ringsData hack:
+// Globe.gl doesn't natively support two arc layers, so we use a second
+// Globe instance overlaid on the same container — cleaner than fighting the API.
+const intlGlobe = Globe()
+  (mount)
+  .width(mount.clientWidth)
+  .height(mount.clientHeight)
+  .backgroundColor('rgba(0,0,0,0)')
+  .globeImageUrl('')
+  .showAtmosphere(false)
+  .arcsData(intlArcs)
+  .arcStartLat('startLat').arcStartLng('startLng')
+  .arcEndLat('endLat').arcEndLng('endLng')
+  .arcColor((d: object) => {
+    const a = d as { paxFrac: number };
+    const alpha = 0.15 + a.paxFrac * 0.45;
+    return [`rgba(78,154,241,${alpha * 0.3})`, `rgba(78,154,241,${alpha})`];
+  })
+  .arcAltitude((d: object) => 0.25 + (d as { paxFrac: number }).paxFrac * 0.25)
+  .arcStroke((d: object) => 0.3 + (d as { paxFrac: number }).paxFrac * 1.2)
+  .arcDashLength(0.4)
+  .arcDashGap(0.6)
+  .arcDashAnimateTime(5000)
+  .pointOfView({ lat: 38.95, lng: -50, altitude: 1.8 }, 0);
+
+// ── sync camera between both globes ──────────────────────────────
+globe.controls().addEventListener('change', () => {
+  intlGlobe.pointOfView(globe.pointOfView());
+});
+intlGlobe.controls().addEventListener('change', () => {
+  globe.pointOfView(intlGlobe.pointOfView());
+});
+
+// ── slow auto-rotate ─────────────────────────────────────────────
+globe.controls().autoRotate      = true;
+globe.controls().autoRotateSpeed = 0.4;
+intlGlobe.controls().autoRotate      = true;
+intlGlobe.controls().autoRotateSpeed = 0.4;
+
+// ── resize handler ────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  globe.width(mount.clientWidth).height(mount.clientHeight);
+  intlGlobe.width(mount.clientWidth).height(mount.clientHeight);
+});
+</script>
+
+<style>
+  #globe-hero {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: #0f1117;
+  }
+
+  #globe-mount {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* Globe.gl creates two canvas elements; stack them */
+  #globe-mount :global(canvas) {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+    padding: 2rem;
+    background: radial-gradient(ellipse at center, rgba(15,17,23,0.5) 0%, transparent 70%);
+  }
+
+  h1 {
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.75rem;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+  }
+
+  .tagline {
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    color: #aaa;
+    margin-bottom: 0;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    font-size: 0.8125rem;
+    color: #555;
+    letter-spacing: 0.05em;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1;   }
+  }
+</style>

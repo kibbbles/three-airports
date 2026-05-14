@@ -1,5 +1,8 @@
 # build output
 dist/
+
+# data exports copied from data/exports/ — not tracked here, CI copies them at build time
+public/data/
 # generated types
 .astro/
 

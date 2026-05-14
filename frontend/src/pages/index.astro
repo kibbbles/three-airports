@@ -1,15 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import GlobeHero from '../components/GlobeHero.astro';
 ---
 <Layout>
-  <!-- Section 0: Hero placeholder (Globe.gl added in next step) -->
-  <div class="hero-placeholder">
-    <h1>Three DMV Airports</h1>
-    <p class="tagline">Ten years of flights. Three airports. One DMV kid.</p>
-    <p class="hint">Globe visualization coming soon ↓</p>
-  </div>
+  <GlobeHero />
 
-  <!-- Section 1: Introduction placeholder -->
   <section>
     <div class="prose">
       <h2>Introduction</h2>
@@ -17,25 +12,3 @@ import Layout from '../layouts/Layout.astro';
     </div>
   </section>
 </Layout>
-
-<style>
-  .hero-placeholder {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 2rem;
-  }
-  .tagline {
-    color: var(--muted);
-    font-size: 1.125rem;
-    margin-bottom: 0;
-  }
-  .hint {
-    color: #444;
-    font-size: 0.875rem;
-    margin-top: 2rem;
-  }
-</style>
