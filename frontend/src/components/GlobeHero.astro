@@ -136,6 +136,10 @@ domGlobe.controls().autoRotateSpeed = 0.4;
 intlGlobe.controls().autoRotate      = true;
 intlGlobe.controls().autoRotateSpeed = 0.4;
 
+// disable zoom so mouse wheel scrolls the page instead of zooming the globe
+domGlobe.controls().enableZoom  = false;
+intlGlobe.controls().enableZoom = false;
+
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
   domGlobe.width(mount.clientWidth).height(mount.clientHeight);
