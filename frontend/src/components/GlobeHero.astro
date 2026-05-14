@@ -51,7 +51,7 @@ const domGlobe: GlobeInstance  = new Globe(mount)
   .width(mount.clientWidth)
   .height(mount.clientHeight)
   .backgroundColor('#0f1117')
-  .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+  .globeImageUrl(`${base}/earth-night.jpg`)
   .atmosphereColor('#4e9af1')
   .atmosphereAltitude(0.12)
   .pointOfView({ lat: 38.95, lng: -50, altitude: 1.8 }, 0);
