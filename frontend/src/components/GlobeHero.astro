@@ -100,7 +100,7 @@ const globe: GlobeInstance = new Globe(mount)
   })
   .arcStroke((d: object) => {
     const arc = d as Arc;
-    return arc.kind === 'dom' ? 0.4 : 0.3 + arc.paxFrac * 1.2;
+    return arc.kind === 'dom' ? 0.8 : 0.5 + arc.paxFrac * 1.5;
   })
   .arcDashLength((d: object) => (d as Arc).kind === 'dom' ? 0.5 : 0.4)
   .arcDashGap((d: object) => (d as Arc).kind === 'dom' ? 0.5 : 0.6)
@@ -134,17 +134,16 @@ window.addEventListener('resize', () => {
     #globe-hero { height: 75vh; }
   }
 
-  /* globe.gl tooltip */
-  #globe-hero :global(.scene-tooltip) {
-    background: rgba(15, 17, 23, 0.85);
-    border: 1px solid #2a2d3a;
-    border-radius: 6px;
-    color: #e8e8e8;
-    font-family: 'Inter', system-ui, sans-serif;
-    font-size: 0.75rem;
-    padding: 0.35rem 0.6rem;
-    pointer-events: none;
-    white-space: nowrap;
+  /* globe.gl tooltip — must sit above the .overlay div */
+  #globe-hero :global(.float-tooltip-kap) {
+    z-index: 50 !important;
+    background: rgba(15, 17, 23, 0.9) !important;
+    border: 1px solid #2a2d3a !important;
+    border-radius: 6px !important;
+    color: #e8e8e8 !important;
+    font-size: 0.75rem !important;
+    padding: 0.35rem 0.65rem !important;
+    white-space: nowrap !important;
   }
   #globe-mount {
     position: absolute;
