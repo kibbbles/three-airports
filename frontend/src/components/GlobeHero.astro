@@ -56,13 +56,10 @@ const domGeo: FeatureCollection = await domRes.json();
 const intlRoutes: IntlRoute[]   = await intlRes.json();
 
 // ── build unified arc array ──────────────────────────────────────
-const DMV_CITY: Record<string, string> = { IAD: 'Washington', DCA: 'Washington', BWI: 'Baltimore' };
-
 const domArcs: Arc[] = domGeo.features.flatMap((f: Feature) => {
   const coords = (f.geometry as LineString).coordinates;
   const p      = f.properties as Record<string, number & string>;
   const city   = p.dest_city ? ` (${p.dest_city})` : '';
-  const dmvCity = DMV_CITY[p.origin] ? ` (${DMV_CITY[p.origin]})` : '';
   return [
     {
       startLat: coords[0][1], startLng: coords[0][0],
@@ -74,7 +71,7 @@ const domArcs: Arc[] = domGeo.features.flatMap((f: Feature) => {
       startLat: coords[1][1], startLng: coords[1][0],
       endLat:   coords[0][1], endLng:   coords[0][0],
       kind: 'dom' as const, origin: p.origin, paxFrac: 0, isReturn: true,
-      label: `${p.dest} → ${p.origin}${dmvCity}`,
+      label: `${p.dest}${city} → ${p.origin}`,
     },
   ];
 });
@@ -93,7 +90,7 @@ const intlArcs: Arc[] = intlRoutes.flatMap(r => {
       startLat: r.d_lat, startLng: r.d_lon,
       endLat:   r.o_lat, endLng:   r.o_lon,
       kind: 'intl' as const, origin: r.origin, paxFrac, isReturn: true,
-      label: `${r.dest} → ${r.origin} (${r.dest_city})`,
+      label: `${r.dest} (${r.dest_city}) → ${r.origin}`,
     },
   ];
 });
