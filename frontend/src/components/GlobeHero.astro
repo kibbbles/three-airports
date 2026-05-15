@@ -55,16 +55,27 @@ const domGeo: FeatureCollection = await domRes.json();
 const intlRoutes: IntlRoute[]   = await intlRes.json();
 
 // ── build unified arc array ──────────────────────────────────────
-const domArcs: Arc[] = domGeo.features.map((f: Feature) => {
+const DMV_CITY: Record<string, string> = { IAD: 'Washington', DCA: 'Washington', BWI: 'Baltimore' };
+
+const domArcs: Arc[] = domGeo.features.flatMap((f: Feature) => {
   const coords = (f.geometry as LineString).coordinates;
   const p      = f.properties as Record<string, number & string>;
   const city   = p.dest_city ? ` (${p.dest_city})` : '';
-  return {
-    startLat: coords[0][1], startLng: coords[0][0],
-    endLat:   coords[1][1], endLng:   coords[1][0],
-    kind: 'dom' as const, origin: p.origin, paxFrac: 0,
-    label: `${p.origin} → ${p.dest}${city}`,
-  };
+  const dmvCity = DMV_CITY[p.origin] ? ` (${DMV_CITY[p.origin]})` : '';
+  return [
+    {
+      startLat: coords[0][1], startLng: coords[0][0],
+      endLat:   coords[1][1], endLng:   coords[1][0],
+      kind: 'dom' as const, origin: p.origin, paxFrac: 0,
+      label: `${p.origin} → ${p.dest}${city}`,
+    },
+    {
+      startLat: coords[1][1], startLng: coords[1][0],
+      endLat:   coords[0][1], endLng:   coords[0][0],
+      kind: 'dom' as const, origin: p.origin, paxFrac: 0,
+      label: `${p.dest} → ${p.origin}${dmvCity}`,
+    },
+  ];
 });
 
 const maxPax = Math.max(...intlRoutes.map(r => r.total_passengers));
