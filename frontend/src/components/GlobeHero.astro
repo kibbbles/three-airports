@@ -110,21 +110,12 @@ const globe: GlobeInstance = new Globe(mount)
 // ── controls ─────────────────────────────────────────────────────
 globe.controls().autoRotate      = true;
 globe.controls().autoRotateSpeed = 0.4;
-globe.controls().enableZoom      = true;
+globe.controls().enableZoom      = false;
 
-// Intercept wheel in capture phase (before OrbitControls sees it).
-// If mouse is outside the globe section, scroll the page instead.
-let overGlobe = false;
+// pause rotation on hover so arc tooltips are reachable
 const hero = document.getElementById('globe-hero') as HTMLElement;
-hero.addEventListener('mouseenter', () => { overGlobe = true; });
-hero.addEventListener('mouseleave', () => { overGlobe = false; });
-
-mount.addEventListener('wheel', (e: WheelEvent) => {
-  if (!overGlobe) {
-    e.stopImmediatePropagation();
-    window.scrollBy({ top: e.deltaY, behavior: 'auto' });
-  }
-}, { passive: false, capture: true });
+hero.addEventListener('mouseenter', () => { globe.controls().autoRotate = false; });
+hero.addEventListener('mouseleave', () => { globe.controls().autoRotate = true; });
 
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
@@ -137,11 +128,23 @@ window.addEventListener('resize', () => {
     position: relative;
     width: 100%;
     height: 100vh;
-    overflow: hidden;
     background: #0f1117;
   }
   @media (max-width: 640px) {
     #globe-hero { height: 75vh; }
+  }
+
+  /* globe.gl tooltip */
+  #globe-hero :global(.scene-tooltip) {
+    background: rgba(15, 17, 23, 0.85);
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    color: #e8e8e8;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.6rem;
+    pointer-events: none;
+    white-space: nowrap;
   }
   #globe-mount {
     position: absolute;
