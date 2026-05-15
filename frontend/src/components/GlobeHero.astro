@@ -110,12 +110,21 @@ const globe: GlobeInstance = new Globe(mount)
 // ── controls ─────────────────────────────────────────────────────
 globe.controls().autoRotate      = true;
 globe.controls().autoRotateSpeed = 0.4;
-globe.controls().enableZoom      = false;
+globe.controls().enableZoom      = true;
 
-// scroll over the globe zooms it; scroll outside scrolls the page
+// Intercept wheel in capture phase (before OrbitControls sees it).
+// If mouse is outside the globe section, scroll the page instead.
+let overGlobe = false;
 const hero = document.getElementById('globe-hero') as HTMLElement;
-hero.addEventListener('mouseenter', () => { globe.controls().enableZoom = true; });
-hero.addEventListener('mouseleave', () => { globe.controls().enableZoom = false; });
+hero.addEventListener('mouseenter', () => { overGlobe = true; });
+hero.addEventListener('mouseleave', () => { overGlobe = false; });
+
+mount.addEventListener('wheel', (e: WheelEvent) => {
+  if (!overGlobe) {
+    e.stopImmediatePropagation();
+    window.scrollBy({ top: e.deltaY, behavior: 'auto' });
+  }
+}, { passive: false, capture: true });
 
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
