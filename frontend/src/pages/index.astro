@@ -135,7 +135,13 @@ function fmt(n: number) { return n.toLocaleString(); }
     padding: 0 1.5rem;
   }
   @media (max-width: 640px) {
-    .cards { grid-template-columns: 1fr; }
+    .cards {
+      grid-template-columns: 1fr;
+      padding: 0 1.25rem;
+      margin-top: 1.75rem;
+    }
+    .card { padding: 1.25rem; }
+    .card-code { font-size: 1.5rem; }
   }
   .card {
     background: var(--surface);

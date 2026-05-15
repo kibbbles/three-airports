@@ -104,12 +104,18 @@ const globe: GlobeInstance = new Globe(mount)
   })
   .arcDashLength((d: object) => (d as Arc).kind === 'dom' ? 0.5 : 0.4)
   .arcDashGap((d: object) => (d as Arc).kind === 'dom' ? 0.5 : 0.6)
-  .arcDashAnimateTime((d: object) => (d as Arc).kind === 'dom' ? 3000 : 5000);
+  .arcDashAnimateTime((d: object) => (d as Arc).kind === 'dom' ? 3000 : 5000)
+  .arcLabel((d: object) => (d as Arc).label);
 
 // ── controls ─────────────────────────────────────────────────────
 globe.controls().autoRotate      = true;
 globe.controls().autoRotateSpeed = 0.4;
 globe.controls().enableZoom      = false;
+
+// scroll over the globe zooms it; scroll outside scrolls the page
+const hero = document.getElementById('globe-hero') as HTMLElement;
+hero.addEventListener('mouseenter', () => { globe.controls().enableZoom = true; });
+hero.addEventListener('mouseleave', () => { globe.controls().enableZoom = false; });
 
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
@@ -124,6 +130,9 @@ window.addEventListener('resize', () => {
     height: 100vh;
     overflow: hidden;
     background: #0f1117;
+  }
+  @media (max-width: 640px) {
+    #globe-hero { height: 75vh; }
   }
   #globe-mount {
     position: absolute;
