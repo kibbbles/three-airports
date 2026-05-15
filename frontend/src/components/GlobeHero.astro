@@ -56,21 +56,33 @@ const intlRoutes: IntlRoute[]   = await intlRes.json();
 const domArcs: Arc[] = domGeo.features.map((f: Feature) => {
   const coords = (f.geometry as LineString).coordinates;
   const p      = f.properties as Record<string, number & string>;
+  const city   = p.dest_city ? ` (${p.dest_city})` : '';
   return {
     startLat: coords[0][1], startLng: coords[0][0],
     endLat:   coords[1][1], endLng:   coords[1][0],
     kind: 'dom', late_rate: p.late_rate, paxFrac: 0,
-    label: `${p.origin} → ${p.dest}`,
+    label: `${p.origin} → ${p.dest}${city}`,
   };
 });
 
 const maxPax = Math.max(...intlRoutes.map(r => r.total_passengers));
-const intlArcs: Arc[] = intlRoutes.map(r => ({
-  startLat: r.o_lat, startLng: r.o_lon,
-  endLat:   r.d_lat, endLng:   r.d_lon,
-  kind: 'intl' as const, late_rate: 0, paxFrac: r.total_passengers / maxPax,
-  label: `${r.origin} → ${r.dest} (${r.dest_city})`,
-}));
+const intlArcs: Arc[] = intlRoutes.flatMap(r => {
+  const paxFrac = r.total_passengers / maxPax;
+  return [
+    {
+      startLat: r.o_lat, startLng: r.o_lon,
+      endLat:   r.d_lat, endLng:   r.d_lon,
+      kind: 'intl' as const, late_rate: 0, paxFrac,
+      label: `${r.origin} → ${r.dest} (${r.dest_city})`,
+    },
+    {
+      startLat: r.d_lat, startLng: r.d_lon,
+      endLat:   r.o_lat, endLng:   r.o_lon,
+      kind: 'intl' as const, late_rate: 0, paxFrac,
+      label: `${r.dest} → ${r.origin} (${r.dest_city})`,
+    },
+  ];
+});
 
 const allArcs: Arc[] = [...domArcs, ...intlArcs];
 
