@@ -124,10 +124,15 @@ globe.controls().autoRotate      = true;
 globe.controls().autoRotateSpeed = 0.4;
 globe.controls().enableZoom      = false;
 
-// pause only when mouse is over the sphere itself, not the surrounding canvas
-globe.onGlobeHover((coords) => {
-  globe.controls().autoRotate = !coords;
-});
+// pause rotation when over the sphere OR an arc (arcs block globe raycasting)
+let onSphere = false;
+let onArc    = false;
+function updateRotate() {
+  globe.controls().autoRotate = !onSphere && !onArc;
+}
+globe
+  .onGlobeHover((coords) => { onSphere = !!coords; updateRotate(); })
+  .onArcHover((arc)    => { onArc    = !!arc;    updateRotate(); });
 
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
