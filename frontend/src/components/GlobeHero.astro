@@ -102,8 +102,11 @@ const globe: GlobeInstance = new Globe(mount)
   .arcEndLat('endLat').arcEndLng('endLng')
   .arcColor((d: object) => {
     const { origin, kind, paxFrac } = d as Arc;
-    const baseAlpha = kind === 'intl' ? 0.15 + paxFrac * 0.5 : 0.85;
-    return [apColor(origin, baseAlpha * 0.25), apColor(origin, baseAlpha)];
+    if (kind === 'dom') {
+      return [apColor(origin, 0.55), apColor(origin, 0.9)];
+    }
+    const a = 0.2 + paxFrac * 0.55;
+    return [apColor(origin, a * 0.35), apColor(origin, a)];
   })
   .arcAltitude((d: object) => {
     const arc = d as Arc;
@@ -123,15 +126,16 @@ globe.controls().autoRotate      = true;
 globe.controls().autoRotateSpeed = 0.4;
 globe.controls().enableZoom      = false;
 
-// pause rotation when over the sphere OR an arc (arcs block globe raycasting)
-let onSphere = false;
-let onArc    = false;
-function updateRotate() {
-  globe.controls().autoRotate = !onSphere && !onArc;
-}
-globe
-  .onGlobeHover((coords) => { onSphere = !!coords; updateRotate(); })
-  .onArcHover((arc)    => { onArc    = !!arc;    updateRotate(); });
+// pause rotation when mouse is over the sphere (geometry check — callbacks unreliable)
+// globe radius ≈ 38% of the shorter canvas dimension at altitude 1.8
+mount.addEventListener('mousemove', (e: MouseEvent) => {
+  const rect = mount.getBoundingClientRect();
+  const dx   = e.clientX - rect.left  - rect.width  / 2;
+  const dy   = e.clientY - rect.top   - rect.height / 2;
+  const r    = Math.min(rect.width, rect.height) * 0.38;
+  globe.controls().autoRotate = dx * dx + dy * dy > r * r;
+});
+mount.addEventListener('mouseleave', () => { globe.controls().autoRotate = true; });
 
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
