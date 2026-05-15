@@ -129,7 +129,7 @@ const globe: GlobeInstance = new Globe(mount)
     return arc.kind === 'dom' ? 0.8 : 0.5 + arc.paxFrac * 1.5;
   })
   .arcDashLength(0.3)
-  .arcDashGap(1.0)
+  .arcDashGap(1.2)
   .arcDashInitialGap((d: object) => (d as Arc).isReturn ? 0.5 : 0)
   .arcDashAnimateTime((d: object) => (d as Arc).kind === 'dom' ? 4000 : 6000)
   .arcLabel((d: object) => (d as Arc).label);
@@ -139,16 +139,20 @@ globe.controls().autoRotate      = true;
 globe.controls().autoRotateSpeed = 0.4;
 globe.controls().enableZoom      = false;
 
-// pause rotation when mouse is over the sphere (geometry check — callbacks unreliable)
-// globe radius ≈ 38% of the shorter canvas dimension at altitude 1.8
+// pause rotation and enable zoom when mouse is over the sphere
 mount.addEventListener('mousemove', (e: MouseEvent) => {
-  const rect = mount.getBoundingClientRect();
-  const dx   = e.clientX - rect.left  - rect.width  / 2;
-  const dy   = e.clientY - rect.top   - rect.height / 2;
-  const r    = Math.min(rect.width, rect.height) * 0.38;
-  globe.controls().autoRotate = dx * dx + dy * dy > r * r;
+  const rect    = mount.getBoundingClientRect();
+  const dx      = e.clientX - rect.left  - rect.width  / 2;
+  const dy      = e.clientY - rect.top   - rect.height / 2;
+  const r       = Math.min(rect.width, rect.height) * 0.38;
+  const onGlobe = dx * dx + dy * dy < r * r;
+  globe.controls().autoRotate = !onGlobe;
+  globe.controls().enableZoom = onGlobe;
 });
-mount.addEventListener('mouseleave', () => { globe.controls().autoRotate = true; });
+mount.addEventListener('mouseleave', () => {
+  globe.controls().autoRotate = true;
+  globe.controls().enableZoom = false;
+});
 
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
