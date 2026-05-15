@@ -136,7 +136,8 @@ globe.controls().autoRotate      = true;
 globe.controls().autoRotateSpeed = 0.4;
 globe.controls().enableZoom      = false;
 
-// pause rotation and enable zoom when mouse is over the sphere
+// pause rotation, enable zoom, and fade overlay when mouse is over the sphere
+const overlay = document.querySelector('#globe-hero .overlay') as HTMLElement;
 mount.addEventListener('mousemove', (e: MouseEvent) => {
   const rect    = mount.getBoundingClientRect();
   const dx      = e.clientX - rect.left  - rect.width  / 2;
@@ -145,10 +146,12 @@ mount.addEventListener('mousemove', (e: MouseEvent) => {
   const onGlobe = dx * dx + dy * dy < r * r;
   globe.controls().autoRotate = !onGlobe;
   globe.controls().enableZoom = onGlobe;
+  overlay.style.opacity = onGlobe ? '0' : '1';
 });
 mount.addEventListener('mouseleave', () => {
   globe.controls().autoRotate = true;
   globe.controls().enableZoom = false;
+  overlay.style.opacity = '1';
 });
 
 // ── resize ────────────────────────────────────────────────────────
@@ -199,6 +202,7 @@ window.addEventListener('resize', () => {
     pointer-events: none;
     padding: 2rem;
     background: radial-gradient(ellipse at center, rgba(15,17,23,0.45) 0%, transparent 70%);
+    transition: opacity 0.4s ease;
   }
   h1 {
     font-size: clamp(2.25rem, 6vw, 3.5rem);
