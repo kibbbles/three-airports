@@ -124,10 +124,10 @@ globe.controls().autoRotate      = true;
 globe.controls().autoRotateSpeed = 0.4;
 globe.controls().enableZoom      = false;
 
-// pause rotation on hover so arc tooltips are reachable
-const hero = document.getElementById('globe-hero') as HTMLElement;
-hero.addEventListener('mouseenter', () => { globe.controls().autoRotate = false; });
-hero.addEventListener('mouseleave', () => { globe.controls().autoRotate = true; });
+// pause only when mouse is over the sphere itself, not the surrounding canvas
+globe.onGlobeHover((coords) => {
+  globe.controls().autoRotate = !coords;
+});
 
 // ── resize ────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
