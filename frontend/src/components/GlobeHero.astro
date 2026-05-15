@@ -18,13 +18,15 @@ import type { Feature, FeatureCollection, LineString } from 'geojson';
 const mount = document.getElementById('globe-mount') as HTMLElement;
 const base  = mount.dataset.base ?? '';
 
-// ── colour helpers ──────────────────────────────────────────────
-function lerp(a: number, b: number, t: number) {
-  return Math.round(a + (b - a) * t);
-}
-function lateRateColor(rate: number, alpha = 0.85): string {
-  const t = Math.min(rate / 0.38, 1);
-  return `rgba(${lerp(34,239,t)},${lerp(197,68,t)},${lerp(94,68,t)},${alpha})`;
+// ── airport colours (IAD=blue, DCA=orange, BWI=green) ───────────
+const AP_COLOR: Record<string, string> = {
+  IAD: '78,154,241',
+  DCA: '249,115,22',
+  BWI: '34,197,94',
+};
+function apColor(origin: string, alpha: number) {
+  const rgb = AP_COLOR[origin] ?? '255,255,255';
+  return `rgba(${rgb},${alpha})`;
 }
 
 // ── unified arc type ─────────────────────────────────────────────
@@ -32,7 +34,7 @@ interface Arc {
   startLat: number; startLng: number;
   endLat:   number; endLng:   number;
   kind:      'dom' | 'intl';
-  late_rate: number;
+  origin:    string;
   paxFrac:   number;
   label:     string;
 }
@@ -60,7 +62,7 @@ const domArcs: Arc[] = domGeo.features.map((f: Feature) => {
   return {
     startLat: coords[0][1], startLng: coords[0][0],
     endLat:   coords[1][1], endLng:   coords[1][0],
-    kind: 'dom', late_rate: p.late_rate, paxFrac: 0,
+    kind: 'dom' as const, origin: p.origin, paxFrac: 0,
     label: `${p.origin} → ${p.dest}${city}`,
   };
 });
@@ -72,13 +74,13 @@ const intlArcs: Arc[] = intlRoutes.flatMap(r => {
     {
       startLat: r.o_lat, startLng: r.o_lon,
       endLat:   r.d_lat, endLng:   r.d_lon,
-      kind: 'intl' as const, late_rate: 0, paxFrac,
+      kind: 'intl' as const, origin: r.origin, paxFrac,
       label: `${r.origin} → ${r.dest} (${r.dest_city})`,
     },
     {
       startLat: r.d_lat, startLng: r.d_lon,
       endLat:   r.o_lat, endLng:   r.o_lon,
-      kind: 'intl' as const, late_rate: 0, paxFrac,
+      kind: 'intl' as const, origin: r.origin, paxFrac,
       label: `${r.dest} → ${r.origin} (${r.dest_city})`,
     },
   ];
@@ -99,12 +101,9 @@ const globe: GlobeInstance = new Globe(mount)
   .arcStartLat('startLat').arcStartLng('startLng')
   .arcEndLat('endLat').arcEndLng('endLng')
   .arcColor((d: object) => {
-    const arc = d as Arc;
-    if (arc.kind === 'dom') {
-      return [lateRateColor(arc.late_rate, 0.25), lateRateColor(arc.late_rate, 0.9)];
-    }
-    const a = 0.15 + arc.paxFrac * 0.45;
-    return [`rgba(78,154,241,${a * 0.3})`, `rgba(78,154,241,${a})`];
+    const { origin, kind, paxFrac } = d as Arc;
+    const baseAlpha = kind === 'intl' ? 0.15 + paxFrac * 0.5 : 0.85;
+    return [apColor(origin, baseAlpha * 0.25), apColor(origin, baseAlpha)];
   })
   .arcAltitude((d: object) => {
     const arc = d as Arc;
