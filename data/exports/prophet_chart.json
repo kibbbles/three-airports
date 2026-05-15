@@ -1,0 +1,260 @@
+{
+  "IAD": [
+    {
+      "year": 2015,
+      "y": 0.1905,
+      "yhat": 0.1709,
+      "yhat_lower": 0.1303,
+      "yhat_upper": 0.2117
+    },
+    {
+      "year": 2016,
+      "y": 0.1488,
+      "yhat": 0.1684,
+      "yhat_lower": 0.1286,
+      "yhat_upper": 0.2097
+    },
+    {
+      "year": 2017,
+      "y": 0.1608,
+      "yhat": 0.173,
+      "yhat_lower": 0.1322,
+      "yhat_upper": 0.2141
+    },
+    {
+      "year": 2018,
+      "y": 0.1784,
+      "yhat": 0.1736,
+      "yhat_lower": 0.1319,
+      "yhat_upper": 0.2138
+    },
+    {
+      "year": 2019,
+      "y": 0.1816,
+      "yhat": 0.1743,
+      "yhat_lower": 0.1341,
+      "yhat_upper": 0.2152
+    },
+    {
+      "year": 2020,
+      "y": 0.0917,
+      "yhat": 0.1718,
+      "yhat_lower": 0.1312,
+      "yhat_upper": 0.2136
+    },
+    {
+      "year": 2021,
+      "y": 0.1624,
+      "yhat": 0.1764,
+      "yhat_lower": 0.1344,
+      "yhat_upper": 0.217
+    },
+    {
+      "year": 2022,
+      "y": 0.1854,
+      "yhat": 0.1771,
+      "yhat_lower": 0.1364,
+      "yhat_upper": 0.2166
+    },
+    {
+      "year": 2023,
+      "y": 0.1723,
+      "yhat": 0.1778,
+      "yhat_lower": 0.1366,
+      "yhat_upper": 0.2187
+    },
+    {
+      "year": 2024,
+      "y": 0.1697,
+      "yhat": 0.1753,
+      "yhat_lower": 0.1339,
+      "yhat_upper": 0.2154
+    },
+    {
+      "year": 2025,
+      "y": 0.203,
+      "yhat": 0.1799,
+      "yhat_lower": 0.1393,
+      "yhat_upper": 0.2206
+    },
+    {
+      "year": 2026,
+      "y": 0.1632,
+      "yhat": 0.1806,
+      "yhat_lower": 0.1395,
+      "yhat_upper": 0.2217
+    }
+  ],
+  "DCA": [
+    {
+      "year": 2015,
+      "y": 0.1718,
+      "yhat": 0.1654,
+      "yhat_lower": 0.1405,
+      "yhat_upper": 0.1893
+    },
+    {
+      "year": 2016,
+      "y": 0.1699,
+      "yhat": 0.1713,
+      "yhat_lower": 0.1466,
+      "yhat_upper": 0.1961
+    },
+    {
+      "year": 2017,
+      "y": 0.1662,
+      "yhat": 0.1788,
+      "yhat_lower": 0.1546,
+      "yhat_upper": 0.2038
+    },
+    {
+      "year": 2018,
+      "y": 0.1894,
+      "yhat": 0.1852,
+      "yhat_lower": 0.1608,
+      "yhat_upper": 0.2097
+    },
+    {
+      "year": 2019,
+      "y": 0.1951,
+      "yhat": 0.1916,
+      "yhat_lower": 0.1674,
+      "yhat_upper": 0.2162
+    },
+    {
+      "year": 2020,
+      "y": 0.0692,
+      "yhat": 0.1976,
+      "yhat_lower": 0.1727,
+      "yhat_upper": 0.222
+    },
+    {
+      "year": 2021,
+      "y": 0.1371,
+      "yhat": 0.2051,
+      "yhat_lower": 0.1801,
+      "yhat_upper": 0.2296
+    },
+    {
+      "year": 2022,
+      "y": 0.2194,
+      "yhat": 0.2115,
+      "yhat_lower": 0.1874,
+      "yhat_upper": 0.2364
+    },
+    {
+      "year": 2023,
+      "y": 0.1726,
+      "yhat": 0.2179,
+      "yhat_lower": 0.193,
+      "yhat_upper": 0.2425
+    },
+    {
+      "year": 2024,
+      "y": 0.1943,
+      "yhat": 0.2239,
+      "yhat_lower": 0.1991,
+      "yhat_upper": 0.2493
+    },
+    {
+      "year": 2025,
+      "y": 0.2653,
+      "yhat": 0.2315,
+      "yhat_lower": 0.2066,
+      "yhat_upper": 0.256
+    },
+    {
+      "year": 2026,
+      "y": 0.2425,
+      "yhat": 0.2379,
+      "yhat_lower": 0.2133,
+      "yhat_upper": 0.2624
+    }
+  ],
+  "BWI": [
+    {
+      "year": 2015,
+      "y": 0.2108,
+      "yhat": 0.1969,
+      "yhat_lower": 0.1682,
+      "yhat_upper": 0.2254
+    },
+    {
+      "year": 2016,
+      "y": 0.1583,
+      "yhat": 0.176,
+      "yhat_lower": 0.1475,
+      "yhat_upper": 0.2043
+    },
+    {
+      "year": 2017,
+      "y": 0.1697,
+      "yhat": 0.1747,
+      "yhat_lower": 0.1459,
+      "yhat_upper": 0.2033
+    },
+    {
+      "year": 2018,
+      "y": 0.1833,
+      "yhat": 0.1763,
+      "yhat_lower": 0.1477,
+      "yhat_upper": 0.2041
+    },
+    {
+      "year": 2019,
+      "y": 0.1795,
+      "yhat": 0.1779,
+      "yhat_lower": 0.1494,
+      "yhat_upper": 0.2072
+    },
+    {
+      "year": 2020,
+      "y": 0.0815,
+      "yhat": 0.1771,
+      "yhat_lower": 0.149,
+      "yhat_upper": 0.2061
+    },
+    {
+      "year": 2021,
+      "y": 0.2167,
+      "yhat": 0.1823,
+      "yhat_lower": 0.1531,
+      "yhat_upper": 0.2109
+    },
+    {
+      "year": 2022,
+      "y": 0.2728,
+      "yhat": 0.1839,
+      "yhat_lower": 0.1541,
+      "yhat_upper": 0.2139
+    },
+    {
+      "year": 2023,
+      "y": 0.2448,
+      "yhat": 0.1855,
+      "yhat_lower": 0.1533,
+      "yhat_upper": 0.2175
+    },
+    {
+      "year": 2024,
+      "y": 0.2332,
+      "yhat": 0.1848,
+      "yhat_lower": 0.1502,
+      "yhat_upper": 0.2189
+    },
+    {
+      "year": 2025,
+      "y": 0.2169,
+      "yhat": 0.1899,
+      "yhat_lower": 0.1511,
+      "yhat_upper": 0.2284
+    },
+    {
+      "year": 2026,
+      "y": 0.1642,
+      "yhat": 0.1915,
+      "yhat_lower": 0.1465,
+      "yhat_upper": 0.2339
+    }
+  ]
+}

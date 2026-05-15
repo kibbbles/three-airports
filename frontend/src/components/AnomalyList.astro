@@ -1,0 +1,148 @@
+---
+import anomalyData from '@data/anomalous_routes.json';
+
+interface AnomalyRoute {
+  origin:        string;
+  dest:          string;
+  dest_city:     string;
+  years_flagged: number;
+  n_years:       number;
+  late_rate:     number;
+  mean_delay:    number;
+}
+
+const routes = anomalyData as AnomalyRoute[];
+const MAX_YEARS = 5;
+
+const AP_LABEL: Record<string, string> = { IAD: 'IAD', DCA: 'DCA', BWI: 'BWI' };
+const AP_CLASS: Record<string, string> = { IAD: 'tag-iad', DCA: 'tag-dca', BWI: 'tag-bwi' };
+
+// Show top 30 (already sorted by years_flagged desc, late_rate desc)
+const shown = routes.slice(0, 30);
+---
+
+<div class="anomaly-list">
+  <div class="list-header">
+    <span class="col-route">Route</span>
+    <span class="col-bar">Flagged years</span>
+    <span class="col-late">Late rate</span>
+    <span class="col-delay">Avg delay</span>
+  </div>
+
+  {shown.map(r => {
+    const pct = (r.years_flagged / MAX_YEARS) * 100;
+    const cityLabel = r.dest_city ? ` (${r.dest_city})` : '';
+    return (
+      <div class="anomaly-row">
+        <span class="col-route">
+          <span class={AP_CLASS[r.origin]}>{AP_LABEL[r.origin]}</span>
+          <span class="route-arrow"> → </span>
+          <span class="route-dest">{r.dest}{cityLabel}</span>
+        </span>
+        <span class="col-bar">
+          <span class="bar-track">
+            <span class="bar-fill" style={`width:${pct}%`}></span>
+          </span>
+          <span class="bar-label">{r.years_flagged}/{r.n_years} yrs</span>
+        </span>
+        <span class="col-late">{(r.late_rate * 100).toFixed(1)}%</span>
+        <span class="col-delay">+{Math.round(r.mean_delay)} min</span>
+      </div>
+    );
+  })}
+
+  {routes.length > 30 && (
+    <p class="more-note muted">+{routes.length - 30} more routes not shown</p>
+  )}
+</div>
+
+<style>
+  .anomaly-list {
+    margin-top: 1.75rem;
+    font-size: 0.85rem;
+  }
+
+  .list-header {
+    display: grid;
+    grid-template-columns: 1fr 160px 68px 68px;
+    gap: 0 0.75rem;
+    padding: 0 0 0.5rem;
+    border-bottom: 1px solid #2a2d3a;
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .anomaly-row {
+    display: grid;
+    grid-template-columns: 1fr 160px 68px 68px;
+    gap: 0 0.75rem;
+    align-items: center;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid rgba(42,45,58,0.6);
+  }
+  .anomaly-row:hover { background: rgba(255,255,255,0.02); }
+
+  .col-route {
+    display: flex;
+    align-items: baseline;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+  .route-arrow { color: var(--muted); }
+  .route-dest {
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .bar-track {
+    flex: 0 0 80px;
+    height: 6px;
+    background: #2a2d3a;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    display: block;
+    height: 100%;
+    background: #ef4444;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  .bar-label {
+    color: var(--muted);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .col-late {
+    color: #ef4444;
+    font-weight: 600;
+    text-align: right;
+  }
+  .col-delay {
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .more-note {
+    margin-top: 1rem;
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 640px) {
+    .list-header, .anomaly-row {
+      grid-template-columns: 1fr 100px 58px;
+    }
+    .col-delay { display: none; }
+    .bar-track { flex: 0 0 50px; }
+  }
+</style>

@@ -1,0 +1,785 @@
+[
+  {
+    "origin": "BWI",
+    "dest": "SAT",
+    "dest_city": "San Antonio",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.2549,
+    "mean_delay": 15.29
+  },
+  {
+    "origin": "BWI",
+    "dest": "HOU",
+    "dest_city": "Houston",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.2506,
+    "mean_delay": 14.41
+  },
+  {
+    "origin": "BWI",
+    "dest": "MDW",
+    "dest_city": "Chicago",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.2313,
+    "mean_delay": 14.38
+  },
+  {
+    "origin": "BWI",
+    "dest": "ORD",
+    "dest_city": "Chicago",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.2088,
+    "mean_delay": 15.86
+  },
+  {
+    "origin": "DCA",
+    "dest": "STL",
+    "dest_city": "St Louis",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.2068,
+    "mean_delay": 15.65
+  },
+  {
+    "origin": "IAD",
+    "dest": "SFO",
+    "dest_city": "San Francisco",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.2004,
+    "mean_delay": 16.74
+  },
+  {
+    "origin": "BWI",
+    "dest": "CLT",
+    "dest_city": "Charlotte",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.1987,
+    "mean_delay": 15.74
+  },
+  {
+    "origin": "DCA",
+    "dest": "CLT",
+    "dest_city": "Charlotte",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.1985,
+    "mean_delay": 20.47
+  },
+  {
+    "origin": "BWI",
+    "dest": "ATL",
+    "dest_city": "Atlanta",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.192,
+    "mean_delay": 14.74
+  },
+  {
+    "origin": "IAD",
+    "dest": "TPA",
+    "dest_city": "Tampa",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.1828,
+    "mean_delay": 13.92
+  },
+  {
+    "origin": "DCA",
+    "dest": "IND",
+    "dest_city": "Indianapolis",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.178,
+    "mean_delay": 13.06
+  },
+  {
+    "origin": "IAD",
+    "dest": "SLC",
+    "dest_city": "Salt Lake City",
+    "years_flagged": 5,
+    "n_years": 5,
+    "late_rate": 0.1314,
+    "mean_delay": 14.64
+  },
+  {
+    "origin": "DCA",
+    "dest": "AUS",
+    "dest_city": "Austin",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.3614,
+    "mean_delay": 25.23
+  },
+  {
+    "origin": "BWI",
+    "dest": "CMH",
+    "dest_city": "Columbus",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2594,
+    "mean_delay": 14.89
+  },
+  {
+    "origin": "BWI",
+    "dest": "FLL",
+    "dest_city": "Fort Lauderdale",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2507,
+    "mean_delay": 16.67
+  },
+  {
+    "origin": "BWI",
+    "dest": "IND",
+    "dest_city": "Indianapolis",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2482,
+    "mean_delay": 13.98
+  },
+  {
+    "origin": "BWI",
+    "dest": "PIT",
+    "dest_city": "Pittsburgh",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2463,
+    "mean_delay": 13.71
+  },
+  {
+    "origin": "BWI",
+    "dest": "PVD",
+    "dest_city": "Providence/Warwick",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2425,
+    "mean_delay": 14.06
+  },
+  {
+    "origin": "BWI",
+    "dest": "MKE",
+    "dest_city": "Milwaukee",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2403,
+    "mean_delay": 14.44
+  },
+  {
+    "origin": "BWI",
+    "dest": "PWM",
+    "dest_city": "Portland",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2336,
+    "mean_delay": 12.59
+  },
+  {
+    "origin": "BWI",
+    "dest": "MYR",
+    "dest_city": "Myrtle Beach",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2288,
+    "mean_delay": 14.74
+  },
+  {
+    "origin": "DCA",
+    "dest": "BOS",
+    "dest_city": "Boston",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2247,
+    "mean_delay": 19.43
+  },
+  {
+    "origin": "BWI",
+    "dest": "ORF",
+    "dest_city": "Norfolk",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2236,
+    "mean_delay": 12.66
+  },
+  {
+    "origin": "DCA",
+    "dest": "MIA",
+    "dest_city": "Miami",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2226,
+    "mean_delay": 18.6
+  },
+  {
+    "origin": "BWI",
+    "dest": "SDF",
+    "dest_city": "Louisville",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2224,
+    "mean_delay": 13.09
+  },
+  {
+    "origin": "BWI",
+    "dest": "ISP",
+    "dest_city": "Islip",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2207,
+    "mean_delay": 12.76
+  },
+  {
+    "origin": "BWI",
+    "dest": "MHT",
+    "dest_city": "Manchester",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2117,
+    "mean_delay": 11.92
+  },
+  {
+    "origin": "DCA",
+    "dest": "OMA",
+    "dest_city": "Omaha",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.2079,
+    "mean_delay": 13.21
+  },
+  {
+    "origin": "BWI",
+    "dest": "STL",
+    "dest_city": "St Louis",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.206,
+    "mean_delay": 12.37
+  },
+  {
+    "origin": "IAD",
+    "dest": "SEA",
+    "dest_city": "Seattle",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.1988,
+    "mean_delay": 16.25
+  },
+  {
+    "origin": "BWI",
+    "dest": "DTW",
+    "dest_city": "Detroit",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.1921,
+    "mean_delay": 14.31
+  },
+  {
+    "origin": "BWI",
+    "dest": "BNA",
+    "dest_city": "Nashville",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.1906,
+    "mean_delay": 11.61
+  },
+  {
+    "origin": "DCA",
+    "dest": "BNA",
+    "dest_city": "Nashville",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.1895,
+    "mean_delay": 14.07
+  },
+  {
+    "origin": "DCA",
+    "dest": "MDW",
+    "dest_city": "Chicago",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.1768,
+    "mean_delay": 12.46
+  },
+  {
+    "origin": "BWI",
+    "dest": "SFO",
+    "dest_city": "San Francisco",
+    "years_flagged": 4,
+    "n_years": 5,
+    "late_rate": 0.1567,
+    "mean_delay": 10.91
+  },
+  {
+    "origin": "BWI",
+    "dest": "SJU",
+    "dest_city": "San Juan",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.3127,
+    "mean_delay": 21.03
+  },
+  {
+    "origin": "BWI",
+    "dest": "ABQ",
+    "dest_city": "Albuquerque",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2702,
+    "mean_delay": 16.44
+  },
+  {
+    "origin": "BWI",
+    "dest": "ROC",
+    "dest_city": "Rochester",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2588,
+    "mean_delay": 14.49
+  },
+  {
+    "origin": "BWI",
+    "dest": "BUF",
+    "dest_city": "Buffalo",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2551,
+    "mean_delay": 14.62
+  },
+  {
+    "origin": "BWI",
+    "dest": "PBI",
+    "dest_city": "West Palm Beach",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2525,
+    "mean_delay": 15.48
+  },
+  {
+    "origin": "BWI",
+    "dest": "CLE",
+    "dest_city": "Cleveland",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2522,
+    "mean_delay": 14.87
+  },
+  {
+    "origin": "DCA",
+    "dest": "PHL",
+    "dest_city": "Philadelphia",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2499,
+    "mean_delay": 20.03
+  },
+  {
+    "origin": "IAD",
+    "dest": "PDX",
+    "dest_city": "Portland",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2477,
+    "mean_delay": 16.94
+  },
+  {
+    "origin": "DCA",
+    "dest": "CLE",
+    "dest_city": "Cleveland",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.245,
+    "mean_delay": 18.19
+  },
+  {
+    "origin": "BWI",
+    "dest": "BDL",
+    "dest_city": "Hartford",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2426,
+    "mean_delay": 13.82
+  },
+  {
+    "origin": "BWI",
+    "dest": "JAX",
+    "dest_city": "Jacksonville",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2387,
+    "mean_delay": 13.78
+  },
+  {
+    "origin": "BWI",
+    "dest": "SAN",
+    "dest_city": "San Diego",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2375,
+    "mean_delay": 13.74
+  },
+  {
+    "origin": "DCA",
+    "dest": "BDL",
+    "dest_city": "Hartford",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2325,
+    "mean_delay": 16.76
+  },
+  {
+    "origin": "BWI",
+    "dest": "DEN",
+    "dest_city": "Denver",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2274,
+    "mean_delay": 14.29
+  },
+  {
+    "origin": "BWI",
+    "dest": "ALB",
+    "dest_city": "Albany",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2262,
+    "mean_delay": 12.85
+  },
+  {
+    "origin": "BWI",
+    "dest": "TPA",
+    "dest_city": "Tampa",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2244,
+    "mean_delay": 14.95
+  },
+  {
+    "origin": "DCA",
+    "dest": "LAX",
+    "dest_city": "Los Angeles",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2151,
+    "mean_delay": 17.07
+  },
+  {
+    "origin": "DCA",
+    "dest": "DAL",
+    "dest_city": "Dallas",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2143,
+    "mean_delay": 14.9
+  },
+  {
+    "origin": "IAD",
+    "dest": "SMF",
+    "dest_city": "Sacramento",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2101,
+    "mean_delay": 16.19
+  },
+  {
+    "origin": "DCA",
+    "dest": "TPA",
+    "dest_city": "Tampa",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2069,
+    "mean_delay": 16.72
+  },
+  {
+    "origin": "DCA",
+    "dest": "MSY",
+    "dest_city": "New Orleans",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.2055,
+    "mean_delay": 13.88
+  },
+  {
+    "origin": "DCA",
+    "dest": "CMH",
+    "dest_city": "Columbus",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.1963,
+    "mean_delay": 15.94
+  },
+  {
+    "origin": "DCA",
+    "dest": "SEA",
+    "dest_city": "Seattle",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.194,
+    "mean_delay": 13.78
+  },
+  {
+    "origin": "DCA",
+    "dest": "DTW",
+    "dest_city": "Detroit",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.1932,
+    "mean_delay": 15.89
+  },
+  {
+    "origin": "IAD",
+    "dest": "LAX",
+    "dest_city": "Los Angeles",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.1879,
+    "mean_delay": 14.02
+  },
+  {
+    "origin": "IAD",
+    "dest": "BUF",
+    "dest_city": "Buffalo",
+    "years_flagged": 3,
+    "n_years": 4,
+    "late_rate": 0.1857,
+    "mean_delay": 14.2
+  },
+  {
+    "origin": "DCA",
+    "dest": "MSP",
+    "dest_city": "Minneapolis",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.1854,
+    "mean_delay": 15.49
+  },
+  {
+    "origin": "DCA",
+    "dest": "LAS",
+    "dest_city": "Las Vegas",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.1776,
+    "mean_delay": 11.65
+  },
+  {
+    "origin": "IAD",
+    "dest": "DEN",
+    "dest_city": "Denver",
+    "years_flagged": 3,
+    "n_years": 5,
+    "late_rate": 0.1742,
+    "mean_delay": 13.75
+  },
+  {
+    "origin": "DCA",
+    "dest": "FLL",
+    "dest_city": "Fort Lauderdale",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.274,
+    "mean_delay": 22.8
+  },
+  {
+    "origin": "BWI",
+    "dest": "LAS",
+    "dest_city": "Las Vegas",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2539,
+    "mean_delay": 15.59
+  },
+  {
+    "origin": "BWI",
+    "dest": "MCI",
+    "dest_city": "Kansas City",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2516,
+    "mean_delay": 15.11
+  },
+  {
+    "origin": "IAD",
+    "dest": "JFK",
+    "dest_city": "New York",
+    "years_flagged": 2,
+    "n_years": 4,
+    "late_rate": 0.2374,
+    "mean_delay": 18.77
+  },
+  {
+    "origin": "DCA",
+    "dest": "MCO",
+    "dest_city": "Orlando",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2291,
+    "mean_delay": 19.36
+  },
+  {
+    "origin": "BWI",
+    "dest": "BOS",
+    "dest_city": "Boston",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.228,
+    "mean_delay": 15.94
+  },
+  {
+    "origin": "BWI",
+    "dest": "RDU",
+    "dest_city": "Raleigh/Durham",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2234,
+    "mean_delay": 12.61
+  },
+  {
+    "origin": "DCA",
+    "dest": "CHS",
+    "dest_city": "Charleston",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2222,
+    "mean_delay": 17.61
+  },
+  {
+    "origin": "BWI",
+    "dest": "CHS",
+    "dest_city": "Charleston",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2208,
+    "mean_delay": 12.58
+  },
+  {
+    "origin": "DCA",
+    "dest": "RSW",
+    "dest_city": "Fort Myers",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.217,
+    "mean_delay": 20.63
+  },
+  {
+    "origin": "IAD",
+    "dest": "DTW",
+    "dest_city": "Detroit",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2132,
+    "mean_delay": 21.41
+  },
+  {
+    "origin": "IAD",
+    "dest": "LGA",
+    "dest_city": "New York",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2111,
+    "mean_delay": 15.26
+  },
+  {
+    "origin": "BWI",
+    "dest": "DFW",
+    "dest_city": "Dallas-Fort Worth",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2089,
+    "mean_delay": 24.06
+  },
+  {
+    "origin": "DCA",
+    "dest": "JAX",
+    "dest_city": "Jacksonville",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2024,
+    "mean_delay": 15.45
+  },
+  {
+    "origin": "DCA",
+    "dest": "PDX",
+    "dest_city": "Portland",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2009,
+    "mean_delay": 14.06
+  },
+  {
+    "origin": "DCA",
+    "dest": "DFW",
+    "dest_city": "Dallas-Fort Worth",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.2001,
+    "mean_delay": 19.3
+  },
+  {
+    "origin": "IAD",
+    "dest": "DFW",
+    "dest_city": "Dallas-Fort Worth",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.1972,
+    "mean_delay": 19.01
+  },
+  {
+    "origin": "DCA",
+    "dest": "SFO",
+    "dest_city": "San Francisco",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.1969,
+    "mean_delay": 16.75
+  },
+  {
+    "origin": "IAD",
+    "dest": "BOS",
+    "dest_city": "Boston",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.1902,
+    "mean_delay": 15.92
+  },
+  {
+    "origin": "BWI",
+    "dest": "ECP",
+    "dest_city": "Panama City Beach",
+    "years_flagged": 2,
+    "n_years": 4,
+    "late_rate": 0.1883,
+    "mean_delay": 12.99
+  },
+  {
+    "origin": "BWI",
+    "dest": "MSP",
+    "dest_city": "Minneapolis",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.1707,
+    "mean_delay": 12.63
+  },
+  {
+    "origin": "DCA",
+    "dest": "PHX",
+    "dest_city": "Phoenix",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.1496,
+    "mean_delay": 14.63
+  },
+  {
+    "origin": "IAD",
+    "dest": "STT",
+    "dest_city": "Charlotte Amalie",
+    "years_flagged": 2,
+    "n_years": 5,
+    "late_rate": 0.1247,
+    "mean_delay": 6.75
+  }
+]

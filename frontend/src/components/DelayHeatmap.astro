@@ -1,0 +1,160 @@
+---
+import heatmaps from '@data/heatmaps.json';
+
+const AIRPORTS  = ['IAD', 'DCA', 'BWI'] as const;
+const AP_NAMES  = { IAD: 'Dulles', DCA: 'Reagan', BWI: 'BWI' } as const;
+const MONTHS    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function hourLabel(h: number): string {
+  if (h === 0)  return '12am';
+  if (h < 12)   return `${h}am`;
+  if (h === 12) return '12pm';
+  return `${h - 12}pm`;
+}
+
+function heatColor(rate: number | null): string {
+  if (rate === null) return '#1a1d27';
+  const t = Math.min(rate / 0.35, 1);
+  const hue = Math.round(120 * (1 - t));
+  return `hsl(${hue},65%,42%)`;
+}
+
+type HeatData = { hours: number[]; months: number[]; values: (number | null)[][] };
+const data = heatmaps as Record<string, HeatData>;
+---
+
+<div class="heatmap-wrap">
+  <div class="tabs" role="tablist">
+    {AIRPORTS.map((ap, i) => (
+      <button
+        class={`tab tab-${ap.toLowerCase()}${i === 0 ? ' active' : ''}`}
+        data-ap={ap}
+        role="tab"
+        aria-selected={String(i === 0)}
+      >
+        {ap} · {AP_NAMES[ap]}
+      </button>
+    ))}
+  </div>
+
+  {AIRPORTS.map((ap, i) => (
+    <div class="panel" data-panel={ap} style={i > 0 ? 'display:none' : ''}>
+      <div class="heatmap-grid">
+        <div class="corner"></div>
+        {MONTHS.map(m => <div class="col-hdr">{m}</div>)}
+        {data[ap].values.map((row, h) => (
+          <>
+            <div class="row-hdr">{h % 6 === 0 ? hourLabel(h) : ''}</div>
+            {row.map(val => (
+              <div
+                class="cell"
+                style={`background:${heatColor(val)}`}
+                title={val !== null ? `${(val * 100).toFixed(1)}% late` : 'no data'}
+              ></div>
+            ))}
+          </>
+        ))}
+      </div>
+      <div class="legend">
+        <span class="leg-label">0%</span>
+        <div class="leg-bar"></div>
+        <span class="leg-label">35%+ late</span>
+      </div>
+    </div>
+  ))}
+</div>
+
+<script>
+  const wrap  = document.querySelector<HTMLElement>('.heatmap-wrap')!;
+  const tabs  = wrap.querySelectorAll<HTMLButtonElement>('.tab');
+  const panels = wrap.querySelectorAll<HTMLElement>('[data-panel]');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const ap = tab.dataset.ap!;
+      tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+      panels.forEach(p => { p.style.display = 'none'; });
+      tab.classList.add('active');
+      tab.setAttribute('aria-selected', 'true');
+      wrap.querySelector<HTMLElement>(`[data-panel="${ap}"]`)!.style.display = '';
+    });
+  });
+</script>
+
+<style>
+  .heatmap-wrap { margin-top: 2rem; }
+
+  .tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .tab {
+    background: var(--surface);
+    border: 1px solid #2a2d3a;
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 0.3rem 0.85rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    font-family: inherit;
+  }
+  .tab.tab-iad.active { border-color: var(--iad); color: var(--iad); }
+  .tab.tab-dca.active { border-color: var(--dca); color: var(--dca); }
+  .tab.tab-bwi.active { border-color: var(--bwi); color: var(--bwi); }
+
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: 2.6rem repeat(12, 1fr);
+    gap: 2px;
+  }
+  .corner { }
+  .col-hdr {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.62rem;
+    padding-bottom: 3px;
+  }
+  .row-hdr {
+    color: var(--muted);
+    font-size: 0.62rem;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    min-height: 18px;
+  }
+  .cell {
+    height: 18px;
+    border-radius: 2px;
+    cursor: default;
+    transition: opacity 0.1s;
+  }
+  .cell:hover { opacity: 0.75; }
+
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.85rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .leg-bar {
+    flex: 0 0 140px;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, hsl(120,65%,42%), hsl(60,65%,42%), hsl(0,65%,42%));
+  }
+
+  @media (max-width: 640px) {
+    .heatmap-grid {
+      grid-template-columns: 2rem repeat(12, 1fr);
+      gap: 1px;
+    }
+    .cell { height: 13px; }
+    .col-hdr, .row-hdr { font-size: 0.52rem; }
+  }
+</style>

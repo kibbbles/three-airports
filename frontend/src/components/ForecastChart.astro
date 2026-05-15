@@ -1,0 +1,202 @@
+---
+import prophetRaw from '@data/prophet_chart.json';
+
+interface YearRow {
+  year: number;
+  y: number | null;
+  yhat: number; yhat_lower: number; yhat_upper: number;
+}
+
+const prophet = prophetRaw as Record<string, YearRow[]>;
+const chartJSON = JSON.stringify(prophet);
+---
+
+<div class="forecast-wrap">
+  <div class="chart-container">
+    <canvas id="forecast-chart" data-prophet={chartJSON}></canvas>
+  </div>
+  <div class="legend-row">
+    <span class="leg-item"><span class="leg-line solid iad"></span> IAD actual</span>
+    <span class="leg-item"><span class="leg-line solid dca"></span> DCA actual</span>
+    <span class="leg-item"><span class="leg-line solid bwi"></span> BWI actual</span>
+    <span class="leg-item"><span class="leg-line dashed"></span> forecast</span>
+    <span class="leg-item"><span class="leg-band"></span> 95% band</span>
+  </div>
+</div>
+
+<script>
+import {
+  Chart, LineController, LinearScale, CategoryScale,
+  PointElement, LineElement, Filler, Tooltip,
+} from 'chart.js';
+Chart.register(LineController, LinearScale, CategoryScale, PointElement, LineElement, Filler, Tooltip);
+
+interface YearRow {
+  year: number;
+  y: number | null;
+  yhat: number; yhat_lower: number; yhat_upper: number;
+}
+
+const canvas  = document.getElementById('forecast-chart') as HTMLCanvasElement;
+const prophet = JSON.parse(canvas.dataset.prophet!) as Record<string, YearRow[]>;
+
+const AP_RGB: Record<string, string> = {
+  IAD: '78,154,241',
+  DCA: '249,115,22',
+  BWI: '34,197,94',
+};
+const AIRPORTS = ['IAD', 'DCA', 'BWI'];
+
+// Build labels from IAD years (all airports share same year range)
+const labels = prophet['IAD'].map(r => String(r.year));
+
+const datasets: object[] = [];
+
+for (const ap of AIRPORTS) {
+  const rows  = prophet[ap];
+  const rgb   = AP_RGB[ap];
+
+  // Confidence band upper (fills down to lower)
+  datasets.push({
+    label:           `_${ap}_upper`,
+    data:            rows.map(r => parseFloat((r.yhat_upper * 100).toFixed(2))),
+    borderWidth:     0,
+    pointRadius:     0,
+    fill:            '+1',
+    backgroundColor: `rgba(${rgb},0.10)`,
+    tension:         0.3,
+  });
+  // Confidence band lower
+  datasets.push({
+    label:           `_${ap}_lower`,
+    data:            rows.map(r => parseFloat((r.yhat_lower * 100).toFixed(2))),
+    borderWidth:     0,
+    pointRadius:     0,
+    fill:            false,
+    tension:         0.3,
+  });
+  // Forecast (dashed)
+  datasets.push({
+    label:           `_${ap}_forecast`,
+    data:            rows.map(r => parseFloat((r.yhat * 100).toFixed(2))),
+    borderColor:     `rgba(${rgb},0.55)`,
+    borderWidth:     1.5,
+    borderDash:      [5, 4],
+    pointRadius:     0,
+    fill:            false,
+    tension:         0.3,
+  });
+  // Actual (solid)
+  datasets.push({
+    label:           ap,
+    data:            rows.map(r => r.y !== null ? parseFloat((r.y * 100).toFixed(2)) : null),
+    borderColor:     `rgba(${rgb},1)`,
+    backgroundColor: `rgba(${rgb},1)`,
+    borderWidth:     2,
+    pointRadius:     3,
+    pointHoverRadius: 5,
+    fill:            false,
+    tension:         0.3,
+    spanGaps:        false,
+  });
+}
+
+new Chart(canvas, {
+  type: 'line',
+  data: { labels, datasets },
+  options: {
+    responsive:          true,
+    maintainAspectRatio: false,
+    animation:           { duration: 300 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        mode:            'index',
+        intersect:       false,
+        backgroundColor: 'rgba(15,17,23,0.95)',
+        titleColor:      '#e8e8e8',
+        bodyColor:       '#aaa',
+        borderColor:     '#2a2d3a',
+        borderWidth:     1,
+        padding:         10,
+        filter: item => !String(item.dataset.label).startsWith('_'),
+        callbacks: {
+          label(item) {
+            const v = item.raw as number | null;
+            if (v === null) return null;
+            return ` ${item.dataset.label}: ${v.toFixed(1)}%`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        ticks:  { color: '#888', font: { size: 11 }, maxRotation: 0 },
+        grid:   { color: '#2a2d3a' },
+        border: { color: '#2a2d3a' },
+      },
+      y: {
+        title:  { display: true, text: 'Late rate (%)', color: '#888', font: { size: 11 } },
+        ticks:  { color: '#888', font: { size: 11 }, callback: (v: unknown) => `${v}%` },
+        grid:   { color: '#2a2d3a' },
+        border: { color: '#2a2d3a' },
+        min:    0,
+      },
+    },
+  },
+});
+</script>
+
+<style>
+  .forecast-wrap { margin-top: 1.75rem; }
+
+  .chart-container {
+    position: relative;
+    height: 320px;
+    background: var(--surface);
+    border-radius: 10px;
+    border: 1px solid #2a2d3a;
+    padding: 1rem 1rem 0.5rem;
+  }
+
+  .legend-row {
+    display: flex;
+    gap: 1.25rem;
+    margin-top: 0.85rem;
+    flex-wrap: wrap;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .leg-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .leg-line {
+    display: inline-block;
+    width: 22px;
+    height: 2px;
+    border-radius: 1px;
+  }
+  .leg-line.solid.iad { background: #4e9af1; }
+  .leg-line.solid.dca { background: #f97316; }
+  .leg-line.solid.bwi { background: #22c55e; }
+  .leg-line.dashed {
+    background: transparent;
+    border-top: 2px dashed #888;
+    height: 0;
+    margin-top: 1px;
+  }
+  .leg-band {
+    display: inline-block;
+    width: 22px;
+    height: 8px;
+    background: rgba(200,200,200,0.15);
+    border-radius: 2px;
+  }
+
+  @media (max-width: 640px) {
+    .chart-container { height: 240px; padding: 0.75rem 0.75rem 0.5rem; }
+    .legend-row { gap: 0.75rem; }
+  }
+</style>

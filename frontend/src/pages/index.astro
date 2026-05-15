@@ -1,6 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import GlobeHero from '../components/GlobeHero.astro';
+import DelayHeatmap from '../components/DelayHeatmap.astro';
+import RouteScatter from '../components/RouteScatter.astro';
+import AnomalyList from '../components/AnomalyList.astro';
+import ForecastChart from '../components/ForecastChart.astro';
 import summary from '@data/airport_summary.json';
 
 const airports = [
@@ -64,11 +68,18 @@ function fmt(n: number) { return n.toLocaleString(); }
     <div class="prose">
       <h2>When delays happen</h2>
       <p>
-        Morning flights are more reliable. Summer and winter are the worst seasons.
-        Evening departures in July and August represent the worst combination across
-        all three airports — particularly at BWI.
+        Morning flights are consistently the most reliable across all three airports.
+        Summer (June–August) and winter (December–January) push late rates highest.
+        Evening departures in July and August are the worst single combination —
+        particularly at BWI, where the 6–9 pm window in summer tops 30%.
       </p>
-      <p class="muted">Heatmap visualization coming soon.</p>
+      <p>
+        Select an airport to explore its hour × month delay pattern. Each cell shows
+        the fraction of flights that arrived more than 15 minutes late.
+      </p>
+    </div>
+    <div class="section-chart prose">
+      <DelayHeatmap />
     </div>
   </section>
 
@@ -77,11 +88,14 @@ function fmt(n: number) { return n.toLocaleString(); }
     <div class="prose">
       <h2>Route explorer</h2>
       <p>
-        217 domestic routes across the three airports, filtered and linked.
-        Slice by airport, k-means cluster, or carrier to see which routes
-        are reliably on time and which have persistent problems.
+        217 domestic routes plotted by distance and late rate. Bubble size reflects
+        total flight volume over the decade — bigger circles are busier routes.
+        Short-haul Northeast corridors (under 400 miles) tend to cluster with higher
+        late rates; transcontinental routes are more spread.
       </p>
-      <p class="muted">Interactive Crossfilter dashboard coming soon.</p>
+    </div>
+    <div class="section-chart prose">
+      <RouteScatter />
     </div>
   </section>
 
@@ -90,11 +104,18 @@ function fmt(n: number) { return n.toLocaleString(); }
     <div class="prose">
       <h2>Routes that keep misbehaving</h2>
       <p>
-        Isolation Forest flagged 87 routes that are persistently anomalous post-2022.
-        BWI has the most (42), followed by DCA (30) and IAD (15).
+        Isolation Forest flagged 87 routes as persistently anomalous since 2022 —
+        meaning their delay profile is a consistent outlier from the rest of the network,
+        year after year. BWI dominates with 42 such routes, followed by DCA (30) and IAD (15).
         BWI→ATL has been flagged every year for five consecutive years.
       </p>
-      <p class="muted">Anomaly dot-plot coming soon.</p>
+      <p>
+        The bar shows how many of the post-2022 years each route was flagged.
+        A route that scores 5/5 has been anomalous every year since 2022.
+      </p>
+    </div>
+    <div class="section-chart prose">
+      <AnomalyList />
     </div>
   </section>
 
@@ -103,11 +124,18 @@ function fmt(n: number) { return n.toLocaleString(); }
     <div class="prose">
       <h2>What the models say</h2>
       <p>
-        Prophet forecasts late rate through 2026. BWI has run consistently above
-        its pre-2022 trend — averaging +4 percentage points above forecast since 2022.
-        IAD and DCA are tracking close to expected.
+        Prophet models were fitted on monthly late rates from 2015–2021 and
+        projected through 2026. The dashed line is the forecast; solid lines are actuals.
+        The shaded band is the 95% confidence interval.
       </p>
-      <p class="muted">Forecast chart coming soon.</p>
+      <p>
+        IAD and DCA are tracking close to forecast. BWI is the outlier: it spiked
+        well above its expected trend starting in 2022 and has only partially recovered —
+        averaging +4 percentage points above forecast through 2024.
+      </p>
+    </div>
+    <div class="section-chart prose">
+      <ForecastChart />
     </div>
   </section>
 
@@ -179,6 +207,10 @@ function fmt(n: number) { return n.toLocaleString(); }
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  .section-chart {
+    margin-top: 0;
   }
 
   ul {
