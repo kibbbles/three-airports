@@ -36,6 +36,7 @@ interface Arc {
   kind:      'dom' | 'intl';
   origin:    string;
   paxFrac:   number;
+  isReturn:  boolean;
   label:     string;
 }
 interface IntlRoute {
@@ -66,13 +67,13 @@ const domArcs: Arc[] = domGeo.features.flatMap((f: Feature) => {
     {
       startLat: coords[0][1], startLng: coords[0][0],
       endLat:   coords[1][1], endLng:   coords[1][0],
-      kind: 'dom' as const, origin: p.origin, paxFrac: 0,
+      kind: 'dom' as const, origin: p.origin, paxFrac: 0, isReturn: false,
       label: `${p.origin} → ${p.dest}${city}`,
     },
     {
       startLat: coords[1][1], startLng: coords[1][0],
       endLat:   coords[0][1], endLng:   coords[0][0],
-      kind: 'dom' as const, origin: p.origin, paxFrac: 0,
+      kind: 'dom' as const, origin: p.origin, paxFrac: 0, isReturn: true,
       label: `${p.dest} → ${p.origin}${dmvCity}`,
     },
   ];
@@ -85,13 +86,13 @@ const intlArcs: Arc[] = intlRoutes.flatMap(r => {
     {
       startLat: r.o_lat, startLng: r.o_lon,
       endLat:   r.d_lat, endLng:   r.d_lon,
-      kind: 'intl' as const, origin: r.origin, paxFrac,
+      kind: 'intl' as const, origin: r.origin, paxFrac, isReturn: false,
       label: `${r.origin} → ${r.dest} (${r.dest_city})`,
     },
     {
       startLat: r.d_lat, startLng: r.d_lon,
       endLat:   r.o_lat, endLng:   r.o_lon,
-      kind: 'intl' as const, origin: r.origin, paxFrac,
+      kind: 'intl' as const, origin: r.origin, paxFrac, isReturn: true,
       label: `${r.dest} → ${r.origin} (${r.dest_city})`,
     },
   ];
@@ -127,9 +128,10 @@ const globe: GlobeInstance = new Globe(mount)
     const arc = d as Arc;
     return arc.kind === 'dom' ? 0.8 : 0.5 + arc.paxFrac * 1.5;
   })
-  .arcDashLength((d: object) => (d as Arc).kind === 'dom' ? 0.5 : 0.4)
-  .arcDashGap((d: object) => (d as Arc).kind === 'dom' ? 0.5 : 0.6)
-  .arcDashAnimateTime((d: object) => (d as Arc).kind === 'dom' ? 3000 : 5000)
+  .arcDashLength(0.12)
+  .arcDashGap(0.88)
+  .arcDashInitialGap((d: object) => (d as Arc).isReturn ? 0.5 : 0)
+  .arcDashAnimateTime((d: object) => (d as Arc).kind === 'dom' ? 4000 : 6000)
   .arcLabel((d: object) => (d as Arc).label);
 
 // ── controls ─────────────────────────────────────────────────────
