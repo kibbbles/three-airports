@@ -23,7 +23,7 @@ function fmt(n: number) { return n.toLocaleString(); }
   <!-- ── Section 1: Introduction ─────────────────────────────────── -->
   <section>
     <div class="prose">
-      <h2>Three airports, one metro area</h2>
+      <h2>IAD, DCA, BWI — what ten years of data shows</h2>
       <p>
         The Washington DC area is served by three commercial airports within 40 miles of each
         other — IAD, DCA, and BWI — each with a distinct personality, carrier mix, and delay
@@ -51,7 +51,7 @@ function fmt(n: number) { return n.toLocaleString(); }
             </div>
             <div class="stat">
               <span class="stat-value">{pct(ap.late_rate)}</span>
-              <span class="stat-label">late rate</span>
+              <span class="stat-label">arrived late</span>
             </div>
             <div class="stat">
               <span class="stat-value">{pct(ap.cancel_rate)}</span>
@@ -61,6 +61,7 @@ function fmt(n: number) { return n.toLocaleString(); }
         </div>
       ))}
     </div>
+    <p class="cards-footnote full-bleed">"Arrived late" = 15 or more minutes behind scheduled arrival time, per BTS definition.</p>
   </section>
 
   <!-- ── Section 2: Delay heatmaps ──────────────────────────────── -->
@@ -211,6 +212,12 @@ function fmt(n: number) { return n.toLocaleString(); }
 
   .section-chart {
     margin-top: 0;
+  }
+  .cards-footnote {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 0.75rem;
+    padding: 0 1.5rem;
   }
 
   ul {
