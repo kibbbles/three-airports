@@ -147,6 +147,8 @@ globe.controls().enableZoom      = false;
 
 // pause rotation, enable zoom, and fade overlay when mouse is over the sphere
 const overlay = document.querySelector('#globe-hero .overlay') as HTMLElement;
+let filterActive = false;
+
 mount.addEventListener('mousemove', (e: MouseEvent) => {
   const rect    = mount.getBoundingClientRect();
   const dx      = e.clientX - rect.left  - rect.width  / 2;
@@ -155,12 +157,12 @@ mount.addEventListener('mousemove', (e: MouseEvent) => {
   const onGlobe = dx * dx + dy * dy < r * r;
   globe.controls().autoRotate = !onGlobe;
   globe.controls().enableZoom = onGlobe;
-  overlay.style.opacity = onGlobe ? '0' : '1';
+  if (!filterActive) overlay.style.opacity = onGlobe ? '0' : '1';
 });
 mount.addEventListener('mouseleave', () => {
   globe.controls().autoRotate = true;
   globe.controls().enableZoom = false;
-  overlay.style.opacity = '1';
+  if (!filterActive) overlay.style.opacity = '1';
 });
 
 // ── resize ────────────────────────────────────────────────────────
@@ -175,6 +177,8 @@ filterBtns.forEach(btn => {
     filterBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const f = btn.dataset.filter!;
+    filterActive = f !== 'all';
+    overlay.style.opacity = filterActive ? '0' : '1';
     globe.arcsData(f === 'all' ? allArcs : allArcs.filter(a => (a as Arc).origin === f));
   });
 });
