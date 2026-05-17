@@ -147,7 +147,7 @@ globe.controls().enableZoom      = false;
 
 // pause rotation, enable zoom, and fade overlay when mouse is over the sphere
 const overlay = document.querySelector('#globe-hero .overlay') as HTMLElement;
-let filterActive = false;
+const hero    = document.getElementById('globe-hero') as HTMLElement;
 
 mount.addEventListener('mousemove', (e: MouseEvent) => {
   const rect    = mount.getBoundingClientRect();
@@ -157,12 +157,12 @@ mount.addEventListener('mousemove', (e: MouseEvent) => {
   const onGlobe = dx * dx + dy * dy < r * r;
   globe.controls().autoRotate = !onGlobe;
   globe.controls().enableZoom = onGlobe;
-  if (!filterActive) overlay.style.opacity = onGlobe ? '0' : '1';
+  overlay.style.opacity = onGlobe ? '0' : '1';
 });
 mount.addEventListener('mouseleave', () => {
   globe.controls().autoRotate = true;
   globe.controls().enableZoom = false;
-  if (!filterActive) overlay.style.opacity = '1';
+  overlay.style.opacity = '1';
 });
 
 // ── resize ────────────────────────────────────────────────────────
@@ -177,8 +177,12 @@ filterBtns.forEach(btn => {
     filterBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const f = btn.dataset.filter!;
-    filterActive = f !== 'all';
-    overlay.style.opacity = filterActive ? '0' : '1';
+    // CSS class approach beats any inline-style race on mobile
+    if (f === 'all') {
+      hero.classList.remove('filter-active');
+    } else {
+      hero.classList.add('filter-active');
+    }
     globe.arcsData(f === 'all' ? allArcs : allArcs.filter(a => (a as Arc).origin === f));
   });
 });
@@ -227,6 +231,10 @@ filterBtns.forEach(btn => {
     padding: 2rem;
     background: radial-gradient(ellipse at center, rgba(15,17,23,0.45) 0%, transparent 70%);
     transition: opacity 0.4s ease;
+  }
+  /* CSS class beats any JS inline-style set by mouse events */
+  #globe-hero.filter-active .overlay {
+    opacity: 0 !important;
   }
   h1 {
     font-size: clamp(2.25rem, 6vw, 3.5rem);
