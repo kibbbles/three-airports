@@ -101,7 +101,7 @@ const routes: RouteProps[] = routeGeo.features.map((f: any) => f.properties);
 const DB   = 7;   // row offset for delay bins
 const DB_N = 14;  // number of delay bins
 const XB   = 21;  // row offset for dist bins (7 + 14)
-const XB_N = 11;  // number of dist bins
+const XB_N = 15;  // number of dist bins (even 200-mi steps)
 
 // ── state ──────────────────────────────────────────────────────────
 const state = {
@@ -109,7 +109,7 @@ const state = {
   hourRange:  [0, 23]  as [number, number],
   dateRange:  [0, 132] as [number, number],
   delayRange: [0, 13]  as [number, number],
-  distRange:  [0, 10]  as [number, number],
+  distRange:  [0, 14]  as [number, number],
 };
 
 // ── sort state ─────────────────────────────────────────────────────
@@ -231,7 +231,8 @@ const DELAY_BIN_RANGES: [number, number][] = [
 ];
 const DIST_BIN_RANGES: [number, number][] = [
   [0, 200], [200, 400], [400, 600], [600, 800], [800, 1000],
-  [1000, 1200], [1200, 1500], [1500, 1800], [1800, 2200], [2200, 2700], [2700, Infinity],
+  [1000, 1200], [1200, 1400], [1400, 1600], [1600, 1800], [1800, 2000],
+  [2000, 2200], [2200, 2400], [2400, 2600], [2600, 2800], [2800, Infinity],
 ];
 
 function inRange(value: number, range: [number, number], binRanges: [number, number][]) {
@@ -359,6 +360,7 @@ function initBrushChart(
   labels: string[],
   onBrush: (lo: number, hi: number) => void,
   tickFilter?: (label: string, i: number) => boolean,
+  tickSz = 0,
 ) {
   const svg = select(svgEl);
   const { W, H, cW, cH } = dims(svgEl);
@@ -375,8 +377,12 @@ function initBrushChart(
     return ax;
   };
   g.append('g').attr('class', 'x-ax').attr('transform', `translate(0,${cH})`)
-    .call(tickFn(axisBottom(xSc).tickSize(0)))
-    .call(a => { a.select('.domain').remove(); a.selectAll('text').attr('fill', '#555').attr('font-size', '10px').attr('dy', '0.9em'); });
+    .call(tickFn(axisBottom(xSc).tickSize(tickSz)))
+    .call(a => {
+      a.select('.domain').remove();
+      a.selectAll('line').attr('stroke', '#444').attr('y2', tickSz);
+      a.selectAll('text').attr('fill', '#555').attr('font-size', '10px').attr('dy', tickSz > 0 ? '1.4em' : '0.9em');
+    });
   g.append('g').attr('class', 'y-ax')
     .call(axisLeft(ySc).ticks(3).tickFormat(v => `${Math.round(+v/1000)}k`))
     .call(a => { a.select('.domain').remove(); a.selectAll('line').remove(); a.selectAll('text').attr('fill', '#444').attr('font-size', '10px'); });
@@ -475,7 +481,7 @@ function updateBars(ctx: ChartContext, bg: Float64Array, fg: Float64Array) {
 // ── labels ─────────────────────────────────────────────────────────
 const HOUR_LABELS  = Array.from({length: 24}, (_, i) => String(i));
 const DELAY_LABELS = ['<-60','-60','-45','-30','-15','-5','0','5','15','30','45','60','90','120+'];
-const DIST_LABELS  = ['0','200','400','600','800','1k','1.2k','1.5k','1.8k','2.2k','2.7k+'];
+const DIST_LABELS  = ['0','200','400','600','800','1k','1.2k','1.4k','1.6k','1.8k','2k','2.2k','2.4k','2.6k','2.8k+'];
 
 const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DATE_LABELS: string[] = [];
@@ -523,7 +529,8 @@ function initCharts() {
     document.getElementById('cfd-date')  as SVGSVGElement,
     DATE_LABELS,
     (lo, hi) => { state.dateRange  = [lo, hi]; render(); },
-    (_, i) => i % 12 === 0 || i % 12 === 5,
+    (_, i) => i % 12 === 0,   // Jan label + tick only
+    4,                          // tick mark below each Jan bar
   );
   // Column sort headers
   document.querySelectorAll<HTMLElement>('#cfd-table th.sortable').forEach(th => {

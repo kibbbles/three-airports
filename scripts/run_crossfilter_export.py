@@ -32,10 +32,9 @@ feat2['dep_hour'] = (feat2['CRSDepTime'] // 100).clip(0, 23)
 DELAY_EDGES = [-np.inf, -60, -45, -30, -15, -5, 0, 5, 15, 30, 45, 60, 90, 120, np.inf]
 DB_N = len(DELAY_EDGES) - 1  # 14
 
-# 11 distance bins  — 0 through 2700+ miles
-# bins: 0, 200, 400, 600, 800, 1000, 1200, 1500, 1800, 2200, 2700+
-DIST_EDGES = [0, 200, 400, 600, 800, 1000, 1200, 1500, 1800, 2200, 2700, np.inf]
-XB_N = len(DIST_EDGES) - 1  # 11
+# 15 distance bins  — even 200-mile steps 0 through 2800+
+DIST_EDGES = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, np.inf]
+XB_N = len(DIST_EDGES) - 1  # 15
 
 feat2['delay_bin'] = pd.cut(feat2['ArrDelay'], bins=DELAY_EDGES, right=False, labels=False)
 feat2['dist_bin']  = pd.cut(feat2['Distance'],        bins=DIST_EDGES,  right=False, labels=False)
