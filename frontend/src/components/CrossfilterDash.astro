@@ -14,7 +14,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <p class="cfd-count"><span id="cfd-n">loading…</span> flights selected</p>
   </div>
 
-  <!-- ── 4 charts ── -->
+  <!-- ── 4 charts: 3 across top, month full-width below ── -->
   <div class="cfd-grid">
     <figure class="cfd-panel">
       <figcaption>Hour of Day <em>— drag to filter</em></figcaption>
@@ -25,12 +25,12 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <svg id="cfd-delay" class="cfd-svg"></svg>
     </figure>
     <figure class="cfd-panel">
-      <figcaption>Month <em>— drag to filter</em></figcaption>
-      <svg id="cfd-month" class="cfd-svg"></svg>
-    </figure>
-    <figure class="cfd-panel">
       <figcaption>Distance (miles) <em>— click to toggle</em></figcaption>
       <svg id="cfd-dist"  class="cfd-svg"></svg>
+    </figure>
+    <figure class="cfd-panel cfd-wide">
+      <figcaption>Month <em>— drag to filter</em></figcaption>
+      <svg id="cfd-month" class="cfd-svg"></svg>
     </figure>
   </div>
 
@@ -379,13 +379,15 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .cfd-count { font-size: 0.8rem; color: var(--muted); margin: 0; }
   #cfd-n { color: #e8e8e8; font-weight: 600; }
 
-  /* ── charts grid ── */
+  /* ── charts grid: 3 across, month spans full width below ── */
   .cfd-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 1rem;
   }
-  @media (max-width: 640px) { .cfd-grid { grid-template-columns: 1fr; } }
+  .cfd-wide { grid-column: 1 / -1; }
+  @media (max-width: 768px) { .cfd-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .cfd-grid { grid-template-columns: 1fr; } }
 
   .cfd-panel {
     background: var(--surface);
