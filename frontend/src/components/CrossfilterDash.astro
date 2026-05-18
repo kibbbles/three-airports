@@ -3,7 +3,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <div id="cfd" data-base={base}>
-  <!-- ── filter + count bar ── -->
   <div class="cfd-header">
     <div id="cfd-ap" role="group" aria-label="Filter by airport">
       <button class="cfd-apbtn active" data-ap="-1">All</button>
@@ -14,7 +13,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <p class="cfd-count"><span id="cfd-n">loading…</span> flights selected</p>
   </div>
 
-  <!-- ── 4 charts: 3 across top, date full-width below ── -->
   <div class="cfd-grid">
     <figure class="cfd-panel">
       <figcaption>Hour of Day <em>— drag to filter</em></figcaption>
@@ -34,10 +32,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     </figure>
   </div>
 
-  <!-- ── route list ── -->
   <aside id="cfd-totals">
-    <span id="cfd-list-count">—</span> routes for the selected airport.
-    <span class="cfd-totals-note">Stats are decade averages. Delay and distance selections also filter routes; hour and date affect only the charts.</span>
+    <span id="cfd-list-count">—</span> routes.
+    <span class="cfd-totals-note" id="cfd-totals-note">Flights and late rate update with the date selection. Delay and distance also filter the route list.</span>
   </aside>
 
   <div id="cfd-list">
@@ -46,14 +43,15 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         <tr>
           <th class="col-route">Route</th>
           <th class="col-dest">Destination</th>
-          <th class="col-flights" title="Total operated flights 2015–2026">Flights</th>
+          <th class="col-flights" title="Flights in the selected date range">Flights</th>
           <th class="col-late">Late rate</th>
           <th class="col-delay">Avg delay</th>
           <th class="col-fare">Avg fare</th>
+          <th class="col-airlines">Airlines</th>
         </tr>
       </thead>
       <tbody id="cfd-tbody">
-        <tr><td colspan="6" class="loading-row">Loading…</td></tr>
+        <tr><td colspan="7" class="loading-row">Loading…</td></tr>
       </tbody>
     </table>
   </div>
@@ -68,26 +66,39 @@ import type { ScaleBand, ScaleLinear, Selection } from 'd3';
 
 // ── types ──────────────────────────────────────────────────────────
 interface CFData { airports: string[]; rows: number[][]; }
+interface RMData {
+  origins: string[]; dests: string[];
+  carriers: Record<string, string[]>;
+  cols: string[];
+  rows: (number | null)[][];
+}
 interface RouteProps {
   origin: string; dest: string; dest_city: string;
   late_rate: number; flight_freq: number; mean_delay: number;
-  mean_fare: number; mean_distance: number; kmeans: number;
+  mean_fare: number; mean_distance: number;
+}
+interface AggStats {
+  n: number; lateRate: number;
+  meanDelay: number | null; meanFare: number | null;
 }
 
 // ── load data ──────────────────────────────────────────────────────
 const mount = document.getElementById('cfd') as HTMLElement;
 const base  = mount.dataset.base ?? '';
 
-const [cfData, routeGeo] = await Promise.all([
+const [cfData, routeGeo, rmData] = await Promise.all([
   fetch(`${base}/data/crossfilter_data.json`).then(r => r.json()) as Promise<CFData>,
   fetch(`${base}/data/routes.geojson`).then(r => r.json()),
+  fetch(`${base}/data/route_monthly.json`)
+    .then(r => r.ok ? r.json() as Promise<RMData> : null)
+    .catch(() => null),
 ]);
+
 const rows   = cfData.rows;
 const routes: RouteProps[] = routeGeo.features.map((f: any) => f.properties);
 
-// Column offsets in each crossfilter row
-const DB = 7;   // delay bins db0..db5 → indices 7..12
-const XB = 13;  // dist  bins xb0..xb5 → indices 13..18
+const DB = 7;   // delay bins db0..db5
+const XB = 13;  // dist  bins xb0..xb5
 
 // ── state ──────────────────────────────────────────────────────────
 const state = {
@@ -104,6 +115,16 @@ const AP_COLORS = ['#4e9af1', '#f97316', '#22c55e'];
 const ALL_COLOR = '#a78bfa';
 const accent = () => state.ap >= 0 ? AP_COLORS[state.ap] : ALL_COLOR;
 
+// ── carrier name lookup ────────────────────────────────────────────
+const CARRIER_FULL: Record<string, string> = {
+  '9E': 'Endeavor Air', 'AA': 'American',  'AS': 'Alaska',
+  'B6': 'JetBlue',      'DL': 'Delta',     'EV': 'ExpressJet',
+  'F9': 'Frontier',     'G4': 'Allegiant', 'MQ': 'Envoy Air',
+  'NK': 'Spirit',       'OH': 'PSA',       'OO': 'SkyWest',
+  'UA': 'United',       'US': 'US Airways','WN': 'Southwest',
+  'YV': 'Mesa Air',     'YX': 'Republic',
+};
+
 // ── crossfilter compute ────────────────────────────────────────────
 function compute() {
   const hBg    = new Float64Array(24),  hFg    = new Float64Array(24);
@@ -118,7 +139,6 @@ function compute() {
 
     const ymIdx = (yr - 2015) * 12 + (m - 1);
 
-    // flights passing each dimension's own filter (for cross-chart fg)
     let dN = 0, xN = 0;
     for (let i = 0; i < 6; i++) {
       if (i >= state.delayRange[0] && i <= state.delayRange[1]) dN += r[DB + i];
@@ -144,8 +164,55 @@ function compute() {
   return { hBg, hFg, dateBg, dateFg, dBg, dFg, xBg, xFg, total };
 }
 
-// ── route list ─────────────────────────────────────────────────────
-// Bin value ranges for route table filtering
+// ── route stats aggregation (from route_monthly, date-aware) ───────
+let _aggCache: Map<string, AggStats> | null = null;
+let _aggCacheKey = '';
+
+function getAggStats(): Map<string, AggStats> | null {
+  if (!rmData) return null;
+  const key = `${state.ap}|${state.dateRange[0]}|${state.dateRange[1]}`;
+  if (key === _aggCacheKey) return _aggCache;
+
+  type Acc = { n: number; lateN: number; dSum: number; dN: number; fSum: number; fN: number };
+  const map = new Map<string, Acc>();
+  const [lo, hi] = state.dateRange;
+
+  for (const r of rmData.rows) {
+    if (state.ap >= 0 && r[0] !== state.ap) continue;
+    const ymIdx = ((r[2] as number) - 2015) * 12 + ((r[3] as number) - 1);
+    if (ymIdx < lo || ymIdx > hi) continue;
+
+    const key2 = `${r[0]}-${r[1]}`;
+    if (!map.has(key2)) map.set(key2, { n: 0, lateN: 0, dSum: 0, dN: 0, fSum: 0, fN: 0 });
+    const acc = map.get(key2)!;
+    const n   = r[4] as number;
+    const lr  = r[5] as number;
+    const md  = r[6] as number | null;
+    const mf  = r[7] as number | null;
+    acc.n     += n;
+    acc.lateN += n * lr;
+    if (md !== null) { acc.dSum += n * md; acc.dN += n; }
+    if (mf !== null) { acc.fSum += n * mf; acc.fN += n; }
+  }
+
+  const result = new Map<string, AggStats>();
+  for (const [k, acc] of map) {
+    const [oi, di] = k.split('-').map(Number);
+    const routeKey = `${rmData.origins[oi]}-${rmData.dests[di]}`;
+    result.set(routeKey, {
+      n:         acc.n,
+      lateRate:  acc.n > 0 ? acc.lateN / acc.n : 0,
+      meanDelay: acc.dN > 0 ? acc.dSum / acc.dN : null,
+      meanFare:  acc.fN > 0 ? acc.fSum / acc.fN : null,
+    });
+  }
+
+  _aggCache    = result;
+  _aggCacheKey = key;
+  return result;
+}
+
+// ── route table filtering helpers ──────────────────────────────────
 const DELAY_BIN_RANGES: [number, number][] = [
   [-Infinity, 0], [0, 15], [15, 30], [30, 60], [60, 120], [120, Infinity],
 ];
@@ -162,28 +229,56 @@ function inRange(value: number, range: [number, number], binRanges: [number, num
   return false;
 }
 
+// ── route list ─────────────────────────────────────────────────────
 function updateList() {
-  const apFilter = state.ap >= 0 ? AP_CODES[state.ap] : null;
-  const filtered = (apFilter ? routes.filter(r => r.origin === apFilter) : routes)
-    .filter(r => inRange(r.mean_delay   ?? 5,   state.delayRange, DELAY_BIN_RANGES))
-    .filter(r => inRange(r.mean_distance ?? 500, state.distRange,  DIST_BIN_RANGES));
-  const sorted = [...filtered].sort((a, b) => b.flight_freq - a.flight_freq);
+  const apFilter  = state.ap >= 0 ? AP_CODES[state.ap] : null;
+  const aggStats  = getAggStats();
+
+  // Base filter: airport + delay range + distance range
+  let filtered = (apFilter ? routes.filter(r => r.origin === apFilter) : routes)
+    .filter(r => inRange(r.mean_delay    ?? 5,   state.delayRange, DELAY_BIN_RANGES))
+    .filter(r => inRange(r.mean_distance ?? 500,  state.distRange,  DIST_BIN_RANGES));
+
+  // If we have time-filtered agg stats, only show routes with flights in that window
+  if (aggStats) {
+    filtered = filtered.filter(r => aggStats.has(`${r.origin}-${r.dest}`));
+  }
+
+  const sorted = [...filtered].sort((a, b) => {
+    const an = aggStats?.get(`${a.origin}-${a.dest}`)?.n ?? a.flight_freq;
+    const bn = aggStats?.get(`${b.origin}-${b.dest}`)?.n ?? b.flight_freq;
+    return bn - an;
+  });
 
   document.getElementById('cfd-list-count')!.textContent = String(sorted.length);
 
   const tbody = document.getElementById('cfd-tbody')!;
   tbody.innerHTML = sorted.map(r => {
-    const late  = (r.late_rate * 100).toFixed(1);
-    const pct   = Math.round(r.late_rate * 100);
+    const rKey  = `${r.origin}-${r.dest}`;
+    const stats = aggStats?.get(rKey);
     const col   = apFilter ? accent() : (AP_COLORS[AP_CODES.indexOf(r.origin)] ?? ALL_COLOR);
     const city  = r.dest_city || r.dest;
-    const fare  = r.mean_fare  ? `$${Math.round(r.mean_fare)}` : '—';
-    const delay = r.mean_delay ? `+${Math.round(r.mean_delay)} min` : '—';
+
+    const lrVal   = stats?.lateRate    ?? r.late_rate;
+    const nFlights = stats ? stats.n   : r.flight_freq;
+    const mdVal   = stats?.meanDelay   ?? r.mean_delay;
+    const mfVal   = stats?.meanFare    ?? r.mean_fare;
+
+    const late  = (lrVal * 100).toFixed(1);
+    const pct   = Math.round(lrVal * 100);
+    const delay = mdVal != null ? `+${Math.round(mdVal)} min` : '—';
+    const fare  = mfVal != null ? `$${Math.round(mfVal)}` : '—';
+
+    const carriers   = rmData?.carriers[rKey] ?? [];
+    const carrierHtml = carriers.length
+      ? carriers.map(c => `<span class="carrier-tag" title="${CARRIER_FULL[c] ?? c}">${c}</span>`).join('')
+      : '<span class="carrier-tag muted-tag">—</span>';
+
     return `
       <tr>
         <td class="col-route"><span class="ap-dot" style="background:${col}"></span>${r.origin} → ${r.dest}</td>
         <td class="col-dest">${city}</td>
-        <td class="col-flights">${r.flight_freq.toLocaleString()}</td>
+        <td class="col-flights">${nFlights.toLocaleString()}</td>
         <td class="col-late">
           <div class="late-bar-wrap">
             <div class="late-bar" style="width:${pct}%;background:${col}"></div>
@@ -192,6 +287,7 @@ function updateList() {
         </td>
         <td class="col-delay">${delay}</td>
         <td class="col-fare">${fare}</td>
+        <td class="col-airlines">${carrierHtml}</td>
       </tr>`;
   }).join('');
 }
@@ -213,7 +309,7 @@ function dims(svgEl: SVGSVGElement) {
   return { W, H: 145, cW: W - PAD.l - PAD.r, cH: 145 - PAD.t - PAD.b };
 }
 
-// ── brush chart (used for all 4 charts) ────────────────────────────
+// ── brush chart ────────────────────────────────────────────────────
 function initBrushChart(
   svgEl: SVGSVGElement,
   labels: string[],
@@ -242,31 +338,30 @@ function initBrushChart(
     .call(axisLeft(ySc).ticks(3).tickFormat(v => `${Math.round(+v/1000)}k`))
     .call(a => { a.select('.domain').remove(); a.selectAll('line').remove(); a.selectAll('text').attr('fill', '#444').attr('font-size', '10px'); });
 
-  // ── decorative drag handles (visual only, pointer-events:none) ──
-  const midY  = cH / 2;
-  const hh    = Math.min(cH - 6, 26); // grip pill height
-  const gripY = midY - hh / 2;
+  // ── decorative grip handles (pointer-events:none, visual only) ───
+  const midY = cH / 2;
+  const hh   = Math.min(cH - 6, 26);
+  const gy   = midY - hh / 2;
 
-  function makeGrip(brushG: Selection<SVGGElement, unknown, null, undefined>) {
+  function makeGrip() {
     const hg = brushG.append('g').attr('visibility', 'hidden').attr('pointer-events', 'none');
     hg.append('rect')
       .attr('x', -5).attr('width', 10)
-      .attr('y', gripY).attr('height', hh)
+      .attr('y', gy).attr('height', hh)
       .attr('rx', 3)
-      .attr('fill', '#a78bfa').attr('fill-opacity', 0.88)
-      .attr('stroke', '#c4b5fd').attr('stroke-width', 0.75);
-    // three grip lines
+      .attr('fill', 'rgba(225,225,232,0.93)')
+      .attr('stroke', 'rgba(180,180,195,0.75)').attr('stroke-width', 0.75);
     for (const dy of [-4, 0, 4]) {
       hg.append('line')
         .attr('x1', -2.5).attr('x2', 2.5)
         .attr('y1', midY + dy).attr('y2', midY + dy)
-        .attr('stroke', '#fff').attr('stroke-width', 1.25).attr('stroke-opacity', 0.65);
+        .attr('stroke', 'rgba(90,90,105,0.7)').attr('stroke-width', 1.25);
     }
     return hg;
   }
 
-  const gripW = makeGrip(brushG);
-  const gripE = makeGrip(brushG);
+  const gripW = makeGrip();
+  const gripE = makeGrip();
 
   function positionGrips(sel: [number, number] | null) {
     if (!sel) {
@@ -278,7 +373,6 @@ function initBrushChart(
     }
   }
 
-  // ── brush ───────────────────────────────────────────────────────
   const brush = brushX<unknown>()
     .extent([[0, 0], [cW, cH]])
     .on('brush', (event) => {
@@ -396,7 +490,6 @@ const ro = new ResizeObserver((entries) => {
 ro.observe(cfdEl);
 if (cfdEl.getBoundingClientRect().width > 0) { ro.disconnect(); initCharts(); }
 
-// ── airport buttons ────────────────────────────────────────────────
 document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('#cfd-ap .cfd-apbtn').forEach(b => b.classList.remove('active'));
@@ -410,7 +503,6 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
 <style>
   #cfd { margin-top: 1.75rem; }
 
-  /* ── header ── */
   .cfd-header {
     display: flex;
     align-items: center;
@@ -438,7 +530,6 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .cfd-count { font-size: 0.8rem; color: var(--muted); margin: 0; }
   #cfd-n { color: #e8e8e8; font-weight: 600; }
 
-  /* ── charts grid ── */
   .cfd-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -465,20 +556,19 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .cfd-svg { display: block; width: 100%; height: 145px; }
   @media (max-width: 640px) { .cfd-svg { height: 115px; } }
 
-  /* D3 brush — native handle rects are kept transparent; custom grip visuals do the job */
+  /* D3 brush — native handle rects transparent; custom grip visuals do the work */
   :global(.brush .handle) {
     fill: transparent !important;
     stroke: none !important;
     cursor: ew-resize !important;
   }
   :global(.brush .selection) {
-    fill: rgba(160,140,210,0.15) !important;
-    stroke: rgba(167,139,250,0.4) !important;
+    fill: rgba(200,200,212,0.18) !important;
+    stroke: rgba(170,170,188,0.5) !important;
     stroke-width: 1px !important;
   }
   :global(.brush .overlay) { cursor: crosshair !important; }
 
-  /* ── totals line ── */
   #cfd-totals {
     margin-top: 1.25rem;
     font-size: 0.78rem;
@@ -491,7 +581,6 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   #cfd-list-count { color: #e8e8e8; font-weight: 600; }
   .cfd-totals-note { color: #444; font-size: 0.72rem; }
 
-  /* ── route list table ── */
   #cfd-list {
     margin-top: 0.5rem;
     max-height: 420px;
@@ -531,11 +620,12 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   #cfd-table tbody tr:last-child td { border-bottom: none; }
   #cfd-table tbody tr:hover td { background: #1a1d2e; }
 
-  .col-route { font-weight: 600; color: #e8e8e8; white-space: nowrap; }
-  .col-dest  { color: #888; }
+  .col-route   { font-weight: 600; color: #e8e8e8; white-space: nowrap; }
+  .col-dest    { color: #888; }
   .col-flights { text-align: right; font-variant-numeric: tabular-nums; }
   .col-delay   { text-align: right; font-variant-numeric: tabular-nums; color: #888; }
   .col-fare    { text-align: right; font-variant-numeric: tabular-nums; }
+  .col-airlines { white-space: nowrap; }
 
   .ap-dot {
     display: inline-block;
@@ -543,7 +633,6 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
     border-radius: 50%;
     margin-right: 0.45rem;
     vertical-align: middle;
-    flex-shrink: 0;
   }
 
   .col-late {
@@ -570,11 +659,29 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
     text-align: right;
   }
 
+  /* Carrier tag chips */
+  .carrier-tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    background: #252838;
+    border: 1px solid #2a2d3a;
+    color: #aaa;
+    margin-right: 0.2rem;
+    letter-spacing: 0.02em;
+    cursor: default;
+  }
+  .muted-tag { color: #444; border-color: #1e2132; background: transparent; }
+
   .loading-row { text-align: center; color: #444; padding: 1.5rem !important; }
 
   @media (max-width: 640px) {
     #cfd-list { max-height: 320px; }
-    .col-delay, .col-fare { display: none; }
-    #cfd-table th.col-delay, #cfd-table th.col-fare { display: none; }
+    .col-delay, .col-fare, .col-airlines { display: none; }
+    #cfd-table th.col-delay,
+    #cfd-table th.col-fare,
+    #cfd-table th.col-airlines { display: none; }
   }
 </style>
