@@ -77,16 +77,22 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   <!-- ── Section 2: Crossfilter ───────────────────────────────── -->
   <section>
     <div class="prose">
-      <h2>Explore 3.2 million flights</h2>
+      <h2>Explore 2.7 million domestic flights</h2>
       <p>
-        Filter by airport, then drag to select a range on hour or month, and click
+        Filter by airport, then drag to select a date range or hour, and click
         individual bars on the delay and distance charts to toggle them. Every chart
         updates based on the selections in all the others — so if you filter to
-        morning flights in June, you immediately see how that changes the delay
+        morning flights in summer, you immediately see how that changes the delay
         distribution.
       </p>
+      <p>
+        The count starts at 2.7 million, not 3.2 million, for two reasons: international
+        flights are excluded because BTS on-time data only covers domestic routes, and
+        cancelled flights are excluded because they have no arrival delay to bin. That
+        leaves 2,748,004 domestic flights that actually departed and landed.
+      </p>
     </div>
-    <div class="section-chart prose">
+    <div class="section-chart full-bleed">
       <CrossfilterDash />
     </div>
   </section>
