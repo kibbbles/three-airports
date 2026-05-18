@@ -21,11 +21,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <svg id="cfd-hour"  class="cfd-svg"></svg>
     </figure>
     <figure class="cfd-panel">
-      <figcaption>Arrival Delay (minutes) <em>— click to toggle</em></figcaption>
+      <figcaption>Arrival Delay (minutes) <em>— drag to filter</em></figcaption>
       <svg id="cfd-delay" class="cfd-svg"></svg>
     </figure>
     <figure class="cfd-panel">
-      <figcaption>Distance (miles) <em>— click to toggle</em></figcaption>
+      <figcaption>Distance (miles) <em>— drag to filter</em></figcaption>
       <svg id="cfd-dist"  class="cfd-svg"></svg>
     </figure>
     <figure class="cfd-panel cfd-wide">
@@ -34,10 +34,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     </figure>
   </div>
 
-  <!-- ── route list (like the original crossfilter table) ── -->
+  <!-- ── route list ── -->
   <aside id="cfd-totals">
     <span id="cfd-list-count">—</span> routes for the selected airport.
-    <span class="cfd-totals-note">Stats are decade averages. Delay and distance selections filter routes; hour and date selections affect only the charts.</span>
+    <span class="cfd-totals-note">Stats are decade averages. Delay and distance selections also filter routes; hour and date affect only the charts.</span>
   </aside>
 
   <div id="cfd-list">
@@ -64,7 +64,7 @@ import {
   select, scaleLinear, scaleBand, brushX,
   axisBottom, axisLeft, max as d3max,
 } from 'd3';
-import type { BrushBehavior, ScaleBand, ScaleLinear, Selection } from 'd3';
+import type { ScaleBand, ScaleLinear, Selection } from 'd3';
 
 // ── types ──────────────────────────────────────────────────────────
 interface CFData { airports: string[]; rows: number[][]; }
@@ -92,10 +92,10 @@ const XB = 13;  // dist  bins xb0..xb5 → indices 13..18
 // ── state ──────────────────────────────────────────────────────────
 const state = {
   ap:         -1,
-  hourRange:  [0, 23]   as [number, number],
-  dateRange:  [0, 132]  as [number, number],
-  delayMask:  0x3F,
-  distMask:   0x3F,
+  hourRange:  [0, 23]  as [number, number],
+  dateRange:  [0, 132] as [number, number],
+  delayRange: [0, 5]   as [number, number],
+  distRange:  [0, 5]   as [number, number],
 };
 
 // ── colours ────────────────────────────────────────────────────────
@@ -118,10 +118,11 @@ function compute() {
 
     const ymIdx = (yr - 2015) * 12 + (m - 1);
 
+    // flights passing each dimension's own filter (for cross-chart fg)
     let dN = 0, xN = 0;
     for (let i = 0; i < 6; i++) {
-      if (state.delayMask & (1 << i)) dN += r[DB + i];
-      if (state.distMask  & (1 << i)) xN += r[XB + i];
+      if (i >= state.delayRange[0] && i <= state.delayRange[1]) dN += r[DB + i];
+      if (i >= state.distRange[0]  && i <= state.distRange[1])  xN += r[XB + i];
     }
 
     const pM = ymIdx >= state.dateRange[0] && ymIdx <= state.dateRange[1];
@@ -130,7 +131,7 @@ function compute() {
     const pX = xN > 0;
 
     const opN = r[DB]+r[DB+1]+r[DB+2]+r[DB+3]+r[DB+4]+r[DB+5];
-    hBg[h]       += opN;
+    hBg[h]        += opN;
     dateBg[ymIdx] += opN;
     for (let i = 0; i < 6; i++) { dBg[i] += r[DB+i]; xBg[i] += r[XB+i]; }
 
@@ -143,55 +144,41 @@ function compute() {
   return { hBg, hFg, dateBg, dateFg, dBg, dFg, xBg, xFg, total };
 }
 
-// ── route filtering helpers ────────────────────────────────────────
-// Mean arrival delay ranges per bin (minutes; bin 0 = early / arrived ahead of schedule)
-const DELAY_RANGES: [number, number][] = [
-  [-Infinity, 0],
-  [0, 15],
-  [15, 30],
-  [30, 60],
-  [60, 120],
-  [120, Infinity],
+// ── route list ─────────────────────────────────────────────────────
+// Bin value ranges for route table filtering
+const DELAY_BIN_RANGES: [number, number][] = [
+  [-Infinity, 0], [0, 15], [15, 30], [30, 60], [60, 120], [120, Infinity],
 ];
-// Mean distance ranges per bin (miles)
-const DIST_RANGES: [number, number][] = [
-  [0, 300],
-  [300, 600],
-  [600, 1000],
-  [1000, 1500],
-  [1500, 2500],
-  [2500, Infinity],
+const DIST_BIN_RANGES: [number, number][] = [
+  [0, 300], [300, 600], [600, 1000], [1000, 1500], [1500, 2500], [2500, Infinity],
 ];
 
-function inMask(value: number, mask: number, ranges: [number, number][]) {
-  if (mask === 0x3F) return true;
-  for (let i = 0; i < 6; i++) {
-    if (mask & (1 << i)) {
-      const [lo, hi] = ranges[i];
-      if (value >= lo && value < hi) return true;
-    }
+function inRange(value: number, range: [number, number], binRanges: [number, number][]) {
+  if (range[0] === 0 && range[1] === 5) return true;
+  for (let i = range[0]; i <= range[1]; i++) {
+    const [lo, hi] = binRanges[i];
+    if (value >= lo && value < hi) return true;
   }
   return false;
 }
 
-// ── route list ─────────────────────────────────────────────────────
 function updateList() {
   const apFilter = state.ap >= 0 ? AP_CODES[state.ap] : null;
   const filtered = (apFilter ? routes.filter(r => r.origin === apFilter) : routes)
-    .filter(r => inMask(r.mean_delay ?? 5,      state.delayMask, DELAY_RANGES))
-    .filter(r => inMask(r.mean_distance ?? 500,  state.distMask,  DIST_RANGES));
+    .filter(r => inRange(r.mean_delay   ?? 5,   state.delayRange, DELAY_BIN_RANGES))
+    .filter(r => inRange(r.mean_distance ?? 500, state.distRange,  DIST_BIN_RANGES));
   const sorted = [...filtered].sort((a, b) => b.flight_freq - a.flight_freq);
 
   document.getElementById('cfd-list-count')!.textContent = String(sorted.length);
 
   const tbody = document.getElementById('cfd-tbody')!;
   tbody.innerHTML = sorted.map(r => {
-    const late    = (r.late_rate * 100).toFixed(1);
-    const pct     = Math.round(r.late_rate * 100);
-    const col     = apFilter ? accent() : (AP_COLORS[AP_CODES.indexOf(r.origin)] ?? ALL_COLOR);
-    const city    = r.dest_city || r.dest;
-    const fare    = r.mean_fare ? `$${Math.round(r.mean_fare)}` : '—';
-    const delay   = r.mean_delay ? `+${Math.round(r.mean_delay)} min` : '—';
+    const late  = (r.late_rate * 100).toFixed(1);
+    const pct   = Math.round(r.late_rate * 100);
+    const col   = apFilter ? accent() : (AP_COLORS[AP_CODES.indexOf(r.origin)] ?? ALL_COLOR);
+    const city  = r.dest_city || r.dest;
+    const fare  = r.mean_fare  ? `$${Math.round(r.mean_fare)}` : '—';
+    const delay = r.mean_delay ? `+${Math.round(r.mean_delay)} min` : '—';
     return `
       <tr>
         <td class="col-route"><span class="ap-dot" style="background:${col}"></span>${r.origin} → ${r.dest}</td>
@@ -220,15 +207,16 @@ interface ChartContext {
 }
 
 function dims(svgEl: SVGSVGElement) {
-  const panel = svgEl.closest('figure') as HTMLElement | null;
+  const panel  = svgEl.closest('figure') as HTMLElement | null;
   const panelW = panel ? panel.getBoundingClientRect().width : 0;
-  const W = Math.max(panelW - 28, 200);
+  const W      = Math.max(panelW - 28, 200);
   return { W, H: 145, cW: W - PAD.l - PAD.r, cH: 145 - PAD.t - PAD.b };
 }
 
-// ── brush chart ────────────────────────────────────────────────────
+// ── brush chart (used for all 4 charts) ────────────────────────────
 function initBrushChart(
-  svgEl: SVGSVGElement, labels: string[],
+  svgEl: SVGSVGElement,
+  labels: string[],
   onBrush: (lo: number, hi: number) => void,
   tickStep?: number,
 ) {
@@ -239,7 +227,7 @@ function initBrushChart(
   const g      = svg.append('g').attr('class', 'bars').attr('transform', `translate(${PAD.l},${PAD.t})`);
   const brushG = svg.append('g').attr('class', 'brush').attr('transform', `translate(${PAD.l},${PAD.t})`);
 
-  const xSc = scaleBand().domain(labels).range([0, cW]).padding(labels.length > 14 ? 0.08 : 0.15);
+  const xSc = scaleBand().domain(labels).range([0, cW]).padding(labels.length > 14 ? 0.08 : 0.2);
   const ySc = scaleLinear().range([cH, 0]);
 
   const step = tickStep ?? (labels.length > 14 ? 4 : 1);
@@ -254,9 +242,50 @@ function initBrushChart(
     .call(axisLeft(ySc).ticks(3).tickFormat(v => `${Math.round(+v/1000)}k`))
     .call(a => { a.select('.domain').remove(); a.selectAll('line').remove(); a.selectAll('text').attr('fill', '#444').attr('font-size', '10px'); });
 
+  // ── decorative drag handles (visual only, pointer-events:none) ──
+  const midY  = cH / 2;
+  const hh    = Math.min(cH - 6, 26); // grip pill height
+  const gripY = midY - hh / 2;
+
+  function makeGrip(brushG: Selection<SVGGElement, unknown, null, undefined>) {
+    const hg = brushG.append('g').attr('visibility', 'hidden').attr('pointer-events', 'none');
+    hg.append('rect')
+      .attr('x', -5).attr('width', 10)
+      .attr('y', gripY).attr('height', hh)
+      .attr('rx', 3)
+      .attr('fill', '#a78bfa').attr('fill-opacity', 0.88)
+      .attr('stroke', '#c4b5fd').attr('stroke-width', 0.75);
+    // three grip lines
+    for (const dy of [-4, 0, 4]) {
+      hg.append('line')
+        .attr('x1', -2.5).attr('x2', 2.5)
+        .attr('y1', midY + dy).attr('y2', midY + dy)
+        .attr('stroke', '#fff').attr('stroke-width', 1.25).attr('stroke-opacity', 0.65);
+    }
+    return hg;
+  }
+
+  const gripW = makeGrip(brushG);
+  const gripE = makeGrip(brushG);
+
+  function positionGrips(sel: [number, number] | null) {
+    if (!sel) {
+      gripW.attr('visibility', 'hidden');
+      gripE.attr('visibility', 'hidden');
+    } else {
+      gripW.attr('visibility', 'visible').attr('transform', `translate(${sel[0]},0)`);
+      gripE.attr('visibility', 'visible').attr('transform', `translate(${sel[1]},0)`);
+    }
+  }
+
+  // ── brush ───────────────────────────────────────────────────────
   const brush = brushX<unknown>()
     .extent([[0, 0], [cW, cH]])
+    .on('brush', (event) => {
+      positionGrips(event.selection as [number, number] | null);
+    })
     .on('end', (event) => {
+      positionGrips(event.selection as [number, number] | null);
       if (!event.selection) { onBrush(0, labels.length - 1); return; }
       const [px0, px1] = event.selection as [number, number];
       const s = xSc.step();
@@ -265,38 +294,15 @@ function initBrushChart(
         Math.min(labels.length - 1, Math.ceil(px1 / s) - 1),
       );
     });
+
   brushG.call(brush);
-  brushG.select('.selection').attr('fill', 'rgba(160,140,210,0.15)').attr('stroke', 'rgba(167,139,250,0.4)').attr('stroke-width', '1px');
   brushG.select('.overlay').attr('fill', 'transparent');
 
   return { ctx: { g, xSc, ySc, cW, cH } };
 }
 
-// ── toggle chart ───────────────────────────────────────────────────
-function initToggleChart(
-  svgEl: SVGSVGElement, labels: string[],
-  maskKey: 'delayMask' | 'distMask',
-) {
-  const svg = select(svgEl);
-  const { W, H, cW, cH } = dims(svgEl);
-  svg.attr('width', W).attr('height', H);
-
-  const g   = svg.append('g').attr('class', 'bars').attr('transform', `translate(${PAD.l},${PAD.t})`);
-  const xSc = scaleBand().domain(labels).range([0, cW]).padding(0.25);
-  const ySc = scaleLinear().range([cH, 0]);
-
-  g.append('g').attr('class', 'x-ax').attr('transform', `translate(0,${cH})`)
-    .call(axisBottom(xSc).tickSize(0))
-    .call(a => { a.select('.domain').remove(); a.selectAll('text').attr('fill', '#555').attr('font-size', '10px').attr('dy', '0.9em'); });
-  g.append('g').attr('class', 'y-ax')
-    .call(axisLeft(ySc).ticks(3).tickFormat(v => `${Math.round(+v/1000)}k`))
-    .call(a => { a.select('.domain').remove(); a.selectAll('line').remove(); a.selectAll('text').attr('fill', '#444').attr('font-size', '10px'); });
-
-  return { ctx: { g, xSc, ySc, cW, cH }, maskKey };
-}
-
 // ── update bars ────────────────────────────────────────────────────
-function updateBars(ctx: ChartContext, bg: Float64Array, fg: Float64Array, maskKey?: 'delayMask' | 'distMask') {
+function updateBars(ctx: ChartContext, bg: Float64Array, fg: Float64Array) {
   const { g, xSc, ySc, cW, cH } = ctx;
   const labels = xSc.domain();
   ySc.domain([0, Math.max(d3max(bg) ?? 0, 1)]).nice();
@@ -320,20 +326,13 @@ function updateBars(ctx: ChartContext, bg: Float64Array, fg: Float64Array, maskK
     .data(bgData, d => String(d.i)).join('rect').attr('class', 'bg')
     .attr('x', d => xSc(labels[d.i])!).attr('y', d => ySc(d.v))
     .attr('width', xSc.bandwidth()).attr('height', d => cH - ySc(d.v))
-    .attr('fill', '#1e2132').style('cursor', maskKey ? 'pointer' : 'default');
+    .attr('fill', '#1e2132');
 
   g.selectAll<SVGRectElement, D>('rect.fg')
     .data(fgData, d => String(d.i)).join('rect').attr('class', 'fg')
     .attr('x', d => xSc(labels[d.i])!).attr('y', d => ySc(d.v))
     .attr('width', xSc.bandwidth()).attr('height', d => cH - ySc(d.v))
-    .attr('fill', d => maskKey ? ((state[maskKey] & (1 << d.i)) ? col : '#2a2d3a') : col)
-    .attr('opacity', 0.88).style('cursor', maskKey ? 'pointer' : 'default');
-
-  if (maskKey) {
-    const key = maskKey;
-    g.selectAll<SVGRectElement, D>('rect.fg, rect.bg')
-      .on('click', (_, d) => { state[key] ^= (1 << d.i); render(); });
-  }
+    .attr('fill', col).attr('opacity', 0.88);
 }
 
 // ── labels ─────────────────────────────────────────────────────────
@@ -345,24 +344,22 @@ const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','D
 const DATE_LABELS: string[] = [];
 for (let y = 2015; y <= 2026; y++) {
   const end = y === 2026 ? 1 : 12;
-  for (let mo = 1; mo <= end; mo++) {
-    DATE_LABELS.push(`${MN[mo-1]} '${String(y).slice(2)}`);
-  }
+  for (let mo = 1; mo <= end; mo++) DATE_LABELS.push(`${MN[mo-1]} '${String(y).slice(2)}`);
 }
 
-let hourChart:  ReturnType<typeof initBrushChart>  | null = null;
-let dateChart:  ReturnType<typeof initBrushChart>  | null = null;
-let delayChart: ReturnType<typeof initToggleChart> | null = null;
-let distChart:  ReturnType<typeof initToggleChart> | null = null;
+let hourChart:  ReturnType<typeof initBrushChart> | null = null;
+let delayChart: ReturnType<typeof initBrushChart> | null = null;
+let distChart:  ReturnType<typeof initBrushChart> | null = null;
+let dateChart:  ReturnType<typeof initBrushChart> | null = null;
 
 // ── render ─────────────────────────────────────────────────────────
 function render() {
-  if (!hourChart || !dateChart || !delayChart || !distChart) return;
+  if (!hourChart || !delayChart || !distChart || !dateChart) return;
   const { hBg, hFg, dateBg, dateFg, dBg, dFg, xBg, xFg, total } = compute();
   updateBars(hourChart.ctx,  hBg,    hFg);
+  updateBars(delayChart.ctx, dBg,    dFg);
+  updateBars(distChart.ctx,  xBg,    xFg);
   updateBars(dateChart.ctx,  dateBg, dateFg);
-  updateBars(delayChart.ctx, dBg,    dFg, delayChart.maskKey);
-  updateBars(distChart.ctx,  xBg,    xFg, distChart.maskKey);
   document.getElementById('cfd-n')!.textContent = total.toLocaleString();
   updateList();
 }
@@ -371,16 +368,24 @@ function initCharts() {
   hourChart  = initBrushChart(
     document.getElementById('cfd-hour')  as SVGSVGElement,
     HOUR_LABELS,
-    (lo, hi) => { state.hourRange = [lo, hi]; render(); },
+    (lo, hi) => { state.hourRange  = [lo, hi]; render(); },
+  );
+  delayChart = initBrushChart(
+    document.getElementById('cfd-delay') as SVGSVGElement,
+    DELAY_LABELS,
+    (lo, hi) => { state.delayRange = [lo, hi]; render(); },
+  );
+  distChart  = initBrushChart(
+    document.getElementById('cfd-dist')  as SVGSVGElement,
+    DIST_LABELS,
+    (lo, hi) => { state.distRange  = [lo, hi]; render(); },
   );
   dateChart  = initBrushChart(
     document.getElementById('cfd-date')  as SVGSVGElement,
     DATE_LABELS,
-    (lo, hi) => { state.dateRange = [lo, hi]; render(); },
+    (lo, hi) => { state.dateRange  = [lo, hi]; render(); },
     12,
   );
-  delayChart = initToggleChart(document.getElementById('cfd-delay') as SVGSVGElement, DELAY_LABELS, 'delayMask');
-  distChart  = initToggleChart(document.getElementById('cfd-dist')  as SVGSVGElement, DIST_LABELS,  'distMask');
   render();
 }
 
@@ -433,7 +438,7 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .cfd-count { font-size: 0.8rem; color: var(--muted); margin: 0; }
   #cfd-n { color: #e8e8e8; font-weight: 600; }
 
-  /* ── charts grid: 3 across, date spans full width below ── */
+  /* ── charts grid ── */
   .cfd-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -460,20 +465,20 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .cfd-svg { display: block; width: 100%; height: 145px; }
   @media (max-width: 640px) { .cfd-svg { height: 115px; } }
 
-  /* D3 brush — keep handles interactive so the selection can be moved and resized */
+  /* D3 brush — native handle rects are kept transparent; custom grip visuals do the job */
   :global(.brush .handle) {
-    fill: rgba(167,139,250,0.25) !important;
-    stroke: rgba(167,139,250,0.55) !important;
-    stroke-width: 1px !important;
-    rx: 2px !important;
+    fill: transparent !important;
+    stroke: none !important;
+    cursor: ew-resize !important;
   }
   :global(.brush .selection) {
     fill: rgba(160,140,210,0.15) !important;
     stroke: rgba(167,139,250,0.4) !important;
     stroke-width: 1px !important;
   }
+  :global(.brush .overlay) { cursor: crosshair !important; }
 
-  /* ── totals line (like original crossfilter aside) ── */
+  /* ── totals line ── */
   #cfd-totals {
     margin-top: 1.25rem;
     font-size: 0.78rem;
@@ -541,7 +546,6 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
     flex-shrink: 0;
   }
 
-  /* late rate bar (like crossfilter's visual bar) */
   .col-late {
     min-width: 110px;
     display: flex;
@@ -556,11 +560,7 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
     overflow: hidden;
     min-width: 40px;
   }
-  .late-bar {
-    height: 100%;
-    border-radius: 3px;
-    opacity: 0.7;
-  }
+  .late-bar { height: 100%; border-radius: 3px; opacity: 0.7; }
   .late-pct {
     font-variant-numeric: tabular-nums;
     color: #aaa;
