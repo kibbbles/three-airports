@@ -269,10 +269,10 @@ function updateList() {
     const delay = mdVal != null ? `+${Math.round(mdVal)} min` : '—';
     const fare  = mfVal != null ? `$${Math.round(mfVal)}` : '—';
 
-    const carriers   = rmData?.carriers[rKey] ?? [];
+    const carriers    = rmData?.carriers[rKey] ?? [];
     const carrierHtml = carriers.length
-      ? carriers.map(c => `<span class="carrier-tag" title="${CARRIER_FULL[c] ?? c}">${c}</span>`).join('')
-      : '<span class="carrier-tag muted-tag">—</span>';
+      ? carriers.map(c => CARRIER_FULL[c] ?? c).join(', ')
+      : '—';
 
     return `
       <tr>
@@ -659,21 +659,7 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
     text-align: right;
   }
 
-  /* Carrier tag chips */
-  .carrier-tag {
-    display: inline-block;
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 0.1rem 0.35rem;
-    border-radius: 4px;
-    background: #252838;
-    border: 1px solid #2a2d3a;
-    color: #aaa;
-    margin-right: 0.2rem;
-    letter-spacing: 0.02em;
-    cursor: default;
-  }
-  .muted-tag { color: #444; border-color: #1e2132; background: transparent; }
+  .col-airlines { font-size: 0.75rem; color: #888; }
 
   .loading-row { text-align: center; color: #444; padding: 1.5rem !important; }
 
