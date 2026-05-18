@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import GlobeHero from '../components/GlobeHero.astro';
 import DelayHeatmap from '../components/DelayHeatmap.astro';
-import RouteScatter from '../components/RouteScatter.astro';
+import CrossfilterDash from '../components/CrossfilterDash.astro';
 import AnomalyList from '../components/AnomalyList.astro';
 import ForecastChart from '../components/ForecastChart.astro';
 import summary from '@data/airport_summary.json';
@@ -39,9 +39,10 @@ function fmt(n: number) { return n.toLocaleString(); }
         option and work backwards from there — I think that's how most people do it.
       </p>
       <p>
-        So I pulled the data. <strong>2,823,044 domestic flights</strong> from January 2015
-        through January 2026, joined with NOAA weather records, T-100 capacity data, and
-        DB1B fare surveys. Here's what ten years actually shows.
+        So I pulled the data. <strong>2,823,044 domestic flights</strong> and
+        <strong>671,124 international departures</strong> from January 2015 through January
+        2026, joined with NOAA weather records, T-100 capacity data, and DB1B fare surveys.
+        Here's what ten years actually shows.
       </p>
     </div>
 
@@ -91,19 +92,20 @@ function fmt(n: number) { return n.toLocaleString(); }
     </div>
   </section>
 
-  <!-- ── Section 3: Route explorer ─────────────────────────────── -->
+  <!-- ── Section 3: Crossfilter ───────────────────────────────── -->
   <section>
     <div class="prose">
-      <h2>Route explorer</h2>
+      <h2>Explore 2.8 million flights</h2>
       <p>
-        217 domestic routes plotted by distance and late rate. Bubble size reflects
-        total flight volume over the decade — bigger circles are busier routes.
-        Short-haul Northeast corridors (under 400 miles) tend to cluster with higher
-        late rates; transcontinental routes are more spread.
+        Filter by airport, then drag to select a range on hour or month, and click
+        individual bars on the delay and distance charts to toggle them. Every chart
+        updates based on the selections in all the others — so if you filter to
+        morning flights in June, you immediately see how that changes the delay
+        distribution.
       </p>
     </div>
     <div class="section-chart prose">
-      <RouteScatter />
+      <CrossfilterDash />
     </div>
   </section>
 
