@@ -52,7 +52,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         </tr>
       </thead>
       <tbody id="cfd-tbody">
-        <tr><td colspan="7" class="loading-row">Loading…</td></tr>
+        <tr><td colspan="8" class="loading-row">Loading…</td></tr>
       </tbody>
     </table>
   </div>
@@ -229,11 +229,12 @@ function getAggStats(): Map<string, AggStats> | null {
 // ── delay-brush-aware mean for a route ────────────────────────────
 function getRouteDelayMean(routeKey: string): number | null {
   const delayActive = state.delayRange[0] !== 0 || state.delayRange[1] !== DB_N - 1;
+  const agg = getAggStats();
   if (!delayActive || !rmData?.delay_dist) {
-    return aggStats?.get(routeKey)?.meanDelay ?? null;
+    return agg?.get(routeKey)?.meanDelay ?? null;
   }
   const dist = rmData.delay_dist[routeKey];
-  if (!dist) return aggStats?.get(routeKey)?.meanDelay ?? null;
+  if (!dist) return agg?.get(routeKey)?.meanDelay ?? null;
   let totalN = 0, totalS = 0;
   for (let i = state.delayRange[0]; i <= state.delayRange[1]; i++) {
     totalN += dist.n[i] ?? 0;
