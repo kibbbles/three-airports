@@ -37,7 +37,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   <!-- ── route list (like the original crossfilter table) ── -->
   <aside id="cfd-totals">
     <span id="cfd-list-count">—</span> routes for the selected airport.
-    <span class="cfd-totals-note">Late rate, delay, and fare are decade averages.</span>
+    <span class="cfd-totals-note">Stats are decade averages. Delay and distance selections filter routes; hour and date selections affect only the charts.</span>
   </aside>
 
   <div id="cfd-list">
@@ -143,12 +143,43 @@ function compute() {
   return { hBg, hFg, dateBg, dateFg, dBg, dFg, xBg, xFg, total };
 }
 
+// ── route filtering helpers ────────────────────────────────────────
+// Mean arrival delay ranges per bin (minutes; bin 0 = early / arrived ahead of schedule)
+const DELAY_RANGES: [number, number][] = [
+  [-Infinity, 0],
+  [0, 15],
+  [15, 30],
+  [30, 60],
+  [60, 120],
+  [120, Infinity],
+];
+// Mean distance ranges per bin (miles)
+const DIST_RANGES: [number, number][] = [
+  [0, 300],
+  [300, 600],
+  [600, 1000],
+  [1000, 1500],
+  [1500, 2500],
+  [2500, Infinity],
+];
+
+function inMask(value: number, mask: number, ranges: [number, number][]) {
+  if (mask === 0x3F) return true;
+  for (let i = 0; i < 6; i++) {
+    if (mask & (1 << i)) {
+      const [lo, hi] = ranges[i];
+      if (value >= lo && value < hi) return true;
+    }
+  }
+  return false;
+}
+
 // ── route list ─────────────────────────────────────────────────────
 function updateList() {
   const apFilter = state.ap >= 0 ? AP_CODES[state.ap] : null;
-  const filtered = apFilter
-    ? routes.filter(r => r.origin === apFilter)
-    : routes;
+  const filtered = (apFilter ? routes.filter(r => r.origin === apFilter) : routes)
+    .filter(r => inMask(r.mean_delay ?? 5,      state.delayMask, DELAY_RANGES))
+    .filter(r => inMask(r.mean_distance ?? 500,  state.distMask,  DIST_RANGES));
   const sorted = [...filtered].sort((a, b) => b.flight_freq - a.flight_freq);
 
   document.getElementById('cfd-list-count')!.textContent = String(sorted.length);
@@ -429,8 +460,13 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .cfd-svg { display: block; width: 100%; height: 145px; }
   @media (max-width: 640px) { .cfd-svg { height: 115px; } }
 
-  /* D3 brush */
-  :global(.brush .handle) { display: none; }
+  /* D3 brush — keep handles interactive so the selection can be moved and resized */
+  :global(.brush .handle) {
+    fill: rgba(167,139,250,0.25) !important;
+    stroke: rgba(167,139,250,0.55) !important;
+    stroke-width: 1px !important;
+    rx: 2px !important;
+  }
   :global(.brush .selection) {
     fill: rgba(160,140,210,0.15) !important;
     stroke: rgba(167,139,250,0.4) !important;
