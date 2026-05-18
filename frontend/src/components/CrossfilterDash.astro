@@ -34,7 +34,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   <aside id="cfd-totals">
     <span id="cfd-list-count">—</span> routes.
-    <span class="cfd-totals-note" id="cfd-totals-note">Route list responds to airport, date, hour, and distance filters. Arrival delay drives the histograms and flight count only.</span>
+    <span class="cfd-totals-note" id="cfd-totals-note">Table filters by airport, date, hour, and distance. Selecting a delay range re-sorts by late rate — most delayed routes first.</span>
   </aside>
 
   <div id="cfd-list">
@@ -263,7 +263,15 @@ function updateList() {
     filtered = filtered.filter(r => aggStats.has(`${r.origin}-${r.dest}`));
   }
 
+  const delayActive = state.delayRange[0] !== 0 || state.delayRange[1] !== DB_N - 1;
+
   const sorted = [...filtered].sort((a, b) => {
+    if (delayActive) {
+      // When delay brush is active, surface most-delayed routes first
+      const alr = aggStats?.get(`${a.origin}-${a.dest}`)?.lateRate ?? a.late_rate;
+      const blr = aggStats?.get(`${b.origin}-${b.dest}`)?.lateRate ?? b.late_rate;
+      return blr - alr;
+    }
     const an = aggStats?.get(`${a.origin}-${a.dest}`)?.n ?? a.flight_freq;
     const bn = aggStats?.get(`${b.origin}-${b.dest}`)?.n ?? b.flight_freq;
     return bn - an;
