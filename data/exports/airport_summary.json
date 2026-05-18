@@ -109,7 +109,9 @@
       }
     ],
     "lat": 38.9531,
-    "lon": -77.4565
+    "lon": -77.4565,
+    "intl_departures": 255423,
+    "intl_passengers": 40278031
   },
   "DCA": {
     "total_flights": 1229075,
@@ -221,7 +223,9 @@
       }
     ],
     "lat": 38.8512,
-    "lon": -77.0402
+    "lon": -77.0402,
+    "intl_departures": 34155,
+    "intl_passengers": 1770197
   },
   "BWI": {
     "total_flights": 1034176,
@@ -333,6 +337,8 @@
       }
     ],
     "lat": 39.1754,
-    "lon": -76.6683
+    "lon": -76.6683,
+    "intl_departures": 46141,
+    "intl_passengers": 5526999
   }
 }

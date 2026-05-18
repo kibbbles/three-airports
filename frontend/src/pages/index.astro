@@ -15,6 +15,7 @@ const airports = [
 
 function pct(n: number) { return (n * 100).toFixed(1) + '%'; }
 function fmt(n: number) { return n.toLocaleString(); }
+function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 'M' : n >= 1_000 ? (n / 1_000).toFixed(0) + 'K' : String(n); }
 ---
 
 <Layout>
@@ -39,9 +40,9 @@ function fmt(n: number) { return n.toLocaleString(); }
         option and work backwards from there — I think that's how most people do it.
       </p>
       <p>
-        So I pulled the data. <strong>2,823,044 domestic flights</strong> and
-        <strong>671,124 international departures</strong> from January 2015 through January
-        2026, joined with NOAA weather records, T-100 capacity data, and DB1B fare surveys.
+        So I pulled the data. <strong>3.2 million flights</strong> from January 2015 through
+        January 2026 — 2,823,044 domestic and 335,719 international departures — joined with
+        NOAA weather records, T-100 capacity data, and DB1B fare surveys.
         Here's what ten years actually shows.
       </p>
     </div>
@@ -54,22 +55,23 @@ function fmt(n: number) { return n.toLocaleString(); }
           <div class="card-name">{ap.name}</div>
           <div class="card-stats">
             <div class="stat">
-              <span class="stat-value">{fmt(ap.total_flights)}</span>
-              <span class="stat-label">flights</span>
+              <span class="stat-value">{fmt(ap.total_flights + (ap as any).intl_departures)}</span>
+              <span class="stat-label">total flights</span>
             </div>
             <div class="stat">
               <span class="stat-value">{pct(ap.late_rate)}</span>
-              <span class="stat-label">arrived late</span>
+              <span class="stat-label">arrived late†</span>
             </div>
             <div class="stat">
               <span class="stat-value">{pct(ap.cancel_rate)}</span>
-              <span class="stat-label">cancelled</span>
+              <span class="stat-label">cancelled†</span>
             </div>
           </div>
+          <div class="card-intl">+{fmtk((ap as any).intl_departures)} intl departures</div>
         </div>
       ))}
     </div>
-    <p class="cards-footnote full-bleed">"Arrived late" = 15 or more minutes behind scheduled arrival time, per BTS definition.</p>
+    <p class="cards-footnote full-bleed">† Domestic flights only — BTS on-time data covers domestic routes. "Arrived late" = 15+ min behind scheduled arrival.</p>
   </section>
 
   <!-- ── Section 2: Delay heatmaps ──────────────────────────────── -->
@@ -201,6 +203,13 @@ function fmt(n: number) { return n.toLocaleString(); }
   .card-stats {
     display: flex;
     gap: 1.25rem;
+  }
+  .card-intl {
+    margin-top: 0.65rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    border-top: 1px solid #2a2d3a;
+    padding-top: 0.5rem;
   }
   .stat {
     display: flex;

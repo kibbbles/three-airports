@@ -117,8 +117,12 @@ interface ChartContext {
 }
 
 function dims(svgEl: SVGSVGElement) {
-  const W = svgEl.getBoundingClientRect().width || svgEl.parentElement!.clientWidth || 320;
-  const H = svgEl.clientHeight || 150;
+  // Read from the figure parent (HTML element — reliable clientWidth) rather than the SVG itself.
+  // SVG getBoundingClientRect() returns 0 until the browser has finished layout.
+  const panel = svgEl.closest('figure') as HTMLElement | null;
+  const panelW = panel ? panel.getBoundingClientRect().width : 0;
+  const W = Math.max(panelW - 28, 200); // 28 ≈ 2 × 0.85rem padding
+  const H = 145;
   return { W, H, cW: W - PAD.l - PAD.r, cH: H - PAD.t - PAD.b };
 }
 
@@ -275,29 +279,21 @@ function updateBars(
   }
 }
 
-// ── init all charts ────────────────────────────────────────────────
+// ── labels ─────────────────────────────────────────────────────────
 const HOUR_LABELS  = Array.from({length: 24}, (_, i) => String(i));
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DELAY_LABELS = ['early','0–14','15–29','30–59','1–2h','2h+'];
 const DIST_LABELS  = ['<300','300–','600–','1k–','1.5k–','2.5k+'];
 
-const hourChart  = initBrushChart(
-  document.getElementById('cfd-hour')  as SVGSVGElement, HOUR_LABELS,
-  (lo, hi) => { state.hourRange  = [lo, hi]; render(); },
-);
-const monthChart = initBrushChart(
-  document.getElementById('cfd-month') as SVGSVGElement, MONTH_LABELS,
-  (lo, hi) => { state.monthRange = [lo + 1, hi + 1]; render(); },
-);
-const delayChart = initToggleChart(
-  document.getElementById('cfd-delay') as SVGSVGElement, DELAY_LABELS, 'delayMask',
-);
-const distChart  = initToggleChart(
-  document.getElementById('cfd-dist')  as SVGSVGElement, DIST_LABELS,  'distMask',
-);
+// ── chart holders ──────────────────────────────────────────────────
+let hourChart:  ReturnType<typeof initBrushChart>  | null = null;
+let monthChart: ReturnType<typeof initBrushChart>  | null = null;
+let delayChart: ReturnType<typeof initToggleChart> | null = null;
+let distChart:  ReturnType<typeof initToggleChart> | null = null;
 
 // ── render ─────────────────────────────────────────────────────────
 function render() {
+  if (!hourChart || !monthChart || !delayChart || !distChart) return;
   const { hBg, hFg, mBg, mFg, dBg, dFg, xBg, xFg, total } = compute();
   updateBars(hourChart.ctx!,  hBg, hFg);
   updateBars(monthChart.ctx!, mBg, mFg);
@@ -306,7 +302,40 @@ function render() {
   document.getElementById('cfd-n')!.textContent = total.toLocaleString();
 }
 
-render();
+// ── init all charts (called once container has a real width) ───────
+function initCharts() {
+  hourChart  = initBrushChart(
+    document.getElementById('cfd-hour')  as SVGSVGElement, HOUR_LABELS,
+    (lo, hi) => { state.hourRange  = [lo, hi]; render(); },
+  );
+  monthChart = initBrushChart(
+    document.getElementById('cfd-month') as SVGSVGElement, MONTH_LABELS,
+    (lo, hi) => { state.monthRange = [lo + 1, hi + 1]; render(); },
+  );
+  delayChart = initToggleChart(
+    document.getElementById('cfd-delay') as SVGSVGElement, DELAY_LABELS, 'delayMask',
+  );
+  distChart  = initToggleChart(
+    document.getElementById('cfd-dist')  as SVGSVGElement, DIST_LABELS,  'distMask',
+  );
+  render();
+}
+
+// Wait until the container has a painted width before initialising D3.
+// getBoundingClientRect on SVG returns 0 until layout is complete.
+const cfdEl = document.getElementById('cfd') as HTMLElement;
+const ro = new ResizeObserver((entries) => {
+  if (entries[0].contentRect.width > 0) {
+    ro.disconnect();
+    initCharts();
+  }
+});
+ro.observe(cfdEl);
+// Immediate fallback — works when the element already has a width (e.g. cached page).
+if (cfdEl.getBoundingClientRect().width > 0) {
+  ro.disconnect();
+  initCharts();
+}
 
 // ── airport buttons ────────────────────────────────────────────────
 document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn => {
