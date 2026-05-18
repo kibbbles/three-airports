@@ -52,6 +52,27 @@ for (orig, dest), grp in rh.groupby(['Origin', 'Dest']):
     active = sorted(grp[grp['n'] >= 50]['dep_hour'].tolist())
     route_hours[f'{orig}-{dest}'] = active
 
+print('Computing per-route delay distributions …')
+DELAY_EDGES_R = [-np.inf, -60, -45, -30, -15, -5, 0, 5, 15, 30, 45, 60, 90, 120, np.inf]
+DB_N_R = len(DELAY_EDGES_R) - 1  # 14
+
+feat_valid = feat_op2[feat_op2['ArrDelay'].notna()].copy()
+feat_valid['db'] = pd.cut(feat_valid['ArrDelay'], bins=DELAY_EDGES_R, right=False, labels=False).astype(int)
+
+rdd_n = (feat_valid.groupby(['Origin', 'Dest', 'db']).size()
+         .unstack('db', fill_value=0).reindex(columns=range(DB_N_R), fill_value=0))
+rdd_s = (feat_valid.groupby(['Origin', 'Dest', 'db'])['ArrDelay'].sum()
+         .unstack('db', fill_value=0.0).reindex(columns=range(DB_N_R), fill_value=0.0))
+
+route_delay_dist: dict = {}
+for idx in rdd_n.index:
+    orig, dest = idx
+    route_delay_dist[f'{orig}-{dest}'] = {
+        'n': [int(v)          for v in rdd_n.loc[idx].tolist()],
+        's': [round(float(v), 1) for v in rdd_s.loc[idx].tolist()],
+    }
+print(f'  {len(route_delay_dist)} routes with delay distributions')
+
 print('Aggregating monthly route stats …')
 rm = (
     feat_op2
@@ -89,6 +110,7 @@ with open(out, 'w') as f:
         'dests':       all_dests,
         'carriers':    route_carriers,
         'route_hours': route_hours,
+        'delay_dist':  route_delay_dist,
         'cols':        ['o', 'd', 'y', 'm', 'n', 'lr', 'md', 'mf'],
         'rows':        records,
     }, f, separators=(',', ':'))

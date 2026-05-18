@@ -47,6 +47,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           <th class="col-late   sortable" data-col="lr">Late rate</th>
           <th class="col-delay  sortable" data-col="md" title="Mean ArrDelay for all operated flights in the selected date window — not filtered by the delay brush">Avg delay</th>
           <th class="col-fare   sortable" data-col="mf">Avg fare</th>
+          <th class="col-dist   sortable" data-col="dist">Distance</th>
           <th class="col-airlines">Airlines</th>
         </tr>
       </thead>
@@ -70,6 +71,7 @@ interface RMData {
   origins: string[]; dests: string[];
   carriers: Record<string, string[]>;
   route_hours: Record<string, number[]>;
+  delay_dist:  Record<string, { n: number[]; s: number[] }>;
   cols: string[];
   rows: (number | null)[][];
 }
@@ -224,6 +226,22 @@ function getAggStats(): Map<string, AggStats> | null {
   return result;
 }
 
+// ── delay-brush-aware mean for a route ────────────────────────────
+function getRouteDelayMean(routeKey: string): number | null {
+  const delayActive = state.delayRange[0] !== 0 || state.delayRange[1] !== DB_N - 1;
+  if (!delayActive || !rmData?.delay_dist) {
+    return aggStats?.get(routeKey)?.meanDelay ?? null;
+  }
+  const dist = rmData.delay_dist[routeKey];
+  if (!dist) return aggStats?.get(routeKey)?.meanDelay ?? null;
+  let totalN = 0, totalS = 0;
+  for (let i = state.delayRange[0]; i <= state.delayRange[1]; i++) {
+    totalN += dist.n[i] ?? 0;
+    totalS += dist.s[i] ?? 0;
+  }
+  return totalN > 0 ? totalS / totalN : null;
+}
+
 // ── route table filtering helpers ──────────────────────────────────
 const DELAY_BIN_RANGES: [number, number][] = [
   [-Infinity, -60], [-60, -45], [-45, -30], [-30, -15], [-15, -5], [-5, 0],
@@ -281,10 +299,11 @@ function updateList() {
     switch (effectiveCol) {
       case 'route':  return sortDir * (`${a.origin}${a.dest}`).localeCompare(`${b.origin}${b.dest}`);
       case 'dest':   return sortDir * (a.dest_city || a.dest).localeCompare(b.dest_city || b.dest);
-      case 'lr':     return sortDir * ((as_?.lateRate  ?? a.late_rate) - (bs_?.lateRate  ?? b.late_rate));
-      case 'md':     return sortDir * ((as_?.meanDelay ?? a.mean_delay ?? 0) - (bs_?.meanDelay ?? b.mean_delay ?? 0));
-      case 'md_asc': return (as_?.meanDelay ?? a.mean_delay ?? 0) - (bs_?.meanDelay ?? b.mean_delay ?? 0);
+      case 'lr':     return sortDir * ((as_?.lateRate ?? a.late_rate) - (bs_?.lateRate ?? b.late_rate));
+      case 'md':     return sortDir * ((getRouteDelayMean(`${a.origin}-${a.dest}`) ?? a.mean_delay ?? 0) - (getRouteDelayMean(`${b.origin}-${b.dest}`) ?? b.mean_delay ?? 0));
+      case 'md_asc': return (getRouteDelayMean(`${a.origin}-${a.dest}`) ?? a.mean_delay ?? 0) - (getRouteDelayMean(`${b.origin}-${b.dest}`) ?? b.mean_delay ?? 0);
       case 'mf':     return sortDir * ((as_?.meanFare  ?? a.mean_fare  ?? 0) - (bs_?.meanFare  ?? b.mean_fare  ?? 0));
+      case 'dist':   return sortDir * ((a.mean_distance ?? 0) - (b.mean_distance ?? 0));
       default:       return sortDir * ((as_?.n ?? a.flight_freq) - (bs_?.n ?? b.flight_freq));
     }
   });
@@ -304,20 +323,23 @@ function updateList() {
     const col   = apFilter ? accent() : (AP_COLORS[AP_CODES.indexOf(r.origin)] ?? ALL_COLOR);
     const city  = r.dest_city || r.dest;
 
-    const lrVal   = stats?.lateRate    ?? r.late_rate;
-    const nFlights = stats ? stats.n   : r.flight_freq;
-    const mdVal   = stats?.meanDelay   ?? r.mean_delay;
-    const mfVal   = stats?.meanFare    ?? r.mean_fare;
+    const rKey2    = `${r.origin}-${r.dest}`;
+    const lrVal    = stats?.lateRate  ?? r.late_rate;
+    const nFlights = stats ? stats.n  : r.flight_freq;
+    const mdVal    = getRouteDelayMean(rKey2) ?? r.mean_delay;
+    const mfVal    = stats?.meanFare  ?? r.mean_fare;
+    const distVal  = Math.round(r.mean_distance ?? 0);
 
     const late  = (lrVal * 100).toFixed(1);
     const pct   = Math.round(lrVal * 100);
     const delay = mdVal != null ? `+${Math.round(mdVal)} min` : '—';
     const fare  = mfVal != null ? `$${Math.round(mfVal)}` : '—';
 
-    const carriers    = rmData?.carriers[rKey] ?? [];
+    const carriers    = rmData?.carriers[rKey2] ?? [];
     const carrierHtml = carriers.length
       ? carriers.map(c => CARRIER_FULL[c] ?? c).join(', ')
       : '—';
+    const distStr = distVal > 0 ? `${distVal.toLocaleString()} mi` : '—';
 
     return `
       <tr>
@@ -332,6 +354,7 @@ function updateList() {
         </td>
         <td class="col-delay">${delay}</td>
         <td class="col-fare">${fare}</td>
+        <td class="col-dist">${distStr}</td>
         <td class="col-airlines">${carrierHtml}</td>
       </tr>`;
   }).join('');
@@ -524,6 +547,7 @@ function initCharts() {
     document.getElementById('cfd-dist')  as SVGSVGElement,
     DIST_LABELS,
     (lo, hi) => { state.distRange  = [lo, hi]; render(); },
+    (_, i) => i % 2 === 0,   // 0, 400, 800, 1.2k, 1.6k, 2k, 2.4k, 2.8k+
   );
   dateChart  = initBrushChart(
     document.getElementById('cfd-date')  as SVGSVGElement,
@@ -651,12 +675,14 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
     margin-top: 0.5rem;
     max-height: 420px;
     overflow-y: auto;
+    overflow-x: auto;
     border: 1px solid #2a2d3a;
     border-radius: 10px;
     background: var(--surface);
   }
   #cfd-table {
     width: 100%;
+    min-width: 780px;
     border-collapse: collapse;
     font-size: 0.78rem;
   }
@@ -691,6 +717,7 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .col-flights { text-align: right; font-variant-numeric: tabular-nums; }
   .col-delay   { text-align: right; font-variant-numeric: tabular-nums; color: #888; }
   .col-fare    { text-align: right; font-variant-numeric: tabular-nums; }
+  .col-dist     { text-align: right; font-variant-numeric: tabular-nums; color: #888; white-space: nowrap; }
   .col-airlines { white-space: nowrap; }
 
   .ap-dot {
@@ -737,9 +764,5 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
 
   @media (max-width: 640px) {
     #cfd-list { max-height: 320px; }
-    .col-delay, .col-fare, .col-airlines { display: none; }
-    #cfd-table th.col-delay,
-    #cfd-table th.col-fare,
-    #cfd-table th.col-airlines { display: none; }
   }
 </style>
