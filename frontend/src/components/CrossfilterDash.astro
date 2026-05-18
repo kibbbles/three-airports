@@ -34,7 +34,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   <aside id="cfd-totals">
     <span id="cfd-list-count">—</span> routes.
-    <span class="cfd-totals-note" id="cfd-totals-note">Flights and late rate update with the date selection. Delay and distance also filter the route list.</span>
+    <span class="cfd-totals-note" id="cfd-totals-note">Route list responds to airport, date, hour, and distance filters. Arrival delay drives the histograms and flight count only.</span>
   </aside>
 
   <div id="cfd-list">
@@ -244,21 +244,17 @@ function updateList() {
   const apFilter  = state.ap >= 0 ? AP_CODES[state.ap] : null;
   const aggStats  = getAggStats();
 
-  // All four crossfilter dimensions → route table
+  // Route table: airport + date (via aggStats) + hour + distance
+  // Delay brush drives the histograms/count only — mean ArrDelay per route (~5–10 min)
+  // never matches the tails of the distribution, so delay doesn't filter routes.
   const hourActive = state.hourRange[0] !== 0 || state.hourRange[1] !== 23;
   const rHours = rmData?.route_hours ?? {};
 
   let filtered = (apFilter ? routes.filter(r => r.origin === apFilter) : routes)
     .filter(r => {
-      // Hour: does this route operate during the selected hour window?
       if (!hourActive) return true;
       const hrs = rHours[`${r.origin}-${r.dest}`];
       return !hrs || hrs.some(h => h >= state.hourRange[0] && h <= state.hourRange[1]);
-    })
-    .filter(r => {
-      // Delay: use time-period mean (ArrDelay, can be negative) when available
-      const md = aggStats?.get(`${r.origin}-${r.dest}`)?.meanDelay ?? r.mean_delay;
-      return inRange(md ?? 0, state.delayRange, DELAY_BIN_RANGES);
     })
     .filter(r => inRange(r.mean_distance ?? 500, state.distRange, DIST_BIN_RANGES));
 
