@@ -41,12 +41,12 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <table id="cfd-table">
       <thead>
         <tr>
-          <th class="col-route">Route</th>
-          <th class="col-dest">Destination</th>
-          <th class="col-flights" title="Flights in the selected date range">Flights</th>
-          <th class="col-late">Late rate</th>
-          <th class="col-delay">Avg delay</th>
-          <th class="col-fare">Avg fare</th>
+          <th class="col-route  sortable" data-col="route">Route</th>
+          <th class="col-dest   sortable" data-col="dest">Destination</th>
+          <th class="col-flights sortable sort-desc" data-col="n" title="Flights in the selected date range">Flights</th>
+          <th class="col-late   sortable" data-col="lr">Late rate</th>
+          <th class="col-delay  sortable" data-col="md" title="Mean ArrDelay for all operated flights in the selected date window — not filtered by the delay brush">Avg delay</th>
+          <th class="col-fare   sortable" data-col="mf">Avg fare</th>
           <th class="col-airlines">Airlines</th>
         </tr>
       </thead>
@@ -111,6 +111,10 @@ const state = {
   delayRange: [0, 13]  as [number, number],
   distRange:  [0, 10]  as [number, number],
 };
+
+// ── sort state ─────────────────────────────────────────────────────
+let sortCol = 'n';     // column key
+let sortDir = -1 as 1 | -1;  // -1 = desc, 1 = asc
 
 // ── colours ────────────────────────────────────────────────────────
 const AP_CODES  = ['IAD', 'DCA', 'BWI'];
@@ -263,18 +267,31 @@ function updateList() {
     filtered = filtered.filter(r => aggStats.has(`${r.origin}-${r.dest}`));
   }
 
+  // Auto-sort: when delay brush selects late bins → late rate desc;
+  //            when it selects early bins → mean delay asc (most negative first).
+  //            User-clicked column always overrides.
   const delayActive = state.delayRange[0] !== 0 || state.delayRange[1] !== DB_N - 1;
+  const earlyOnly   = delayActive && state.delayRange[1] <= 5;  // all bins < 0 min
+  const effectiveCol = delayActive && sortCol === 'n' ? (earlyOnly ? 'md_asc' : 'lr') : sortCol;
 
   const sorted = [...filtered].sort((a, b) => {
-    if (delayActive) {
-      // When delay brush is active, surface most-delayed routes first
-      const alr = aggStats?.get(`${a.origin}-${a.dest}`)?.lateRate ?? a.late_rate;
-      const blr = aggStats?.get(`${b.origin}-${b.dest}`)?.lateRate ?? b.late_rate;
-      return blr - alr;
+    const as_ = aggStats?.get(`${a.origin}-${a.dest}`);
+    const bs_ = aggStats?.get(`${b.origin}-${b.dest}`);
+    switch (effectiveCol) {
+      case 'route':  return sortDir * (`${a.origin}${a.dest}`).localeCompare(`${b.origin}${b.dest}`);
+      case 'dest':   return sortDir * (a.dest_city || a.dest).localeCompare(b.dest_city || b.dest);
+      case 'lr':     return sortDir * ((as_?.lateRate  ?? a.late_rate) - (bs_?.lateRate  ?? b.late_rate));
+      case 'md':     return sortDir * ((as_?.meanDelay ?? a.mean_delay ?? 0) - (bs_?.meanDelay ?? b.mean_delay ?? 0));
+      case 'md_asc': return (as_?.meanDelay ?? a.mean_delay ?? 0) - (bs_?.meanDelay ?? b.mean_delay ?? 0);
+      case 'mf':     return sortDir * ((as_?.meanFare  ?? a.mean_fare  ?? 0) - (bs_?.meanFare  ?? b.mean_fare  ?? 0));
+      default:       return sortDir * ((as_?.n ?? a.flight_freq) - (bs_?.n ?? b.flight_freq));
     }
-    const an = aggStats?.get(`${a.origin}-${a.dest}`)?.n ?? a.flight_freq;
-    const bn = aggStats?.get(`${b.origin}-${b.dest}`)?.n ?? b.flight_freq;
-    return bn - an;
+  });
+
+  // Update sort indicators on headers
+  document.querySelectorAll<HTMLElement>('#cfd-table th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === sortCol) th.classList.add(sortDir === -1 ? 'sort-desc' : 'sort-asc');
   });
 
   document.getElementById('cfd-list-count')!.textContent = String(sorted.length);
@@ -508,6 +525,20 @@ function initCharts() {
     (lo, hi) => { state.dateRange  = [lo, hi]; render(); },
     (_, i) => i % 12 === 0 || i % 12 === 5,
   );
+  // Column sort headers
+  document.querySelectorAll<HTMLElement>('#cfd-table th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col!;
+      if (col === sortCol) {
+        sortDir = (sortDir === -1 ? 1 : -1) as 1 | -1;
+      } else {
+        sortCol = col;
+        sortDir = (col === 'route' || col === 'dest') ? 1 : -1;
+      }
+      render();
+    });
+  });
+
   render();
 }
 
@@ -690,6 +721,12 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .col-airlines { font-size: 0.75rem; color: #888; }
 
   .loading-row { text-align: center; color: #444; padding: 1.5rem !important; }
+
+  .sortable { cursor: pointer; user-select: none; }
+  .sortable:hover { color: #aaa; }
+  .sortable::after { content: ''; margin-left: 0.3em; color: #444; font-size: 0.65em; }
+  .sortable.sort-desc::after { content: '↓'; color: #aaa; }
+  .sortable.sort-asc::after  { content: '↑'; color: #aaa; }
 
   @media (max-width: 640px) {
     #cfd-list { max-height: 320px; }
