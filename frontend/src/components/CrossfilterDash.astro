@@ -69,6 +69,7 @@ interface CFData { airports: string[]; rows: number[][]; }
 interface RMData {
   origins: string[]; dests: string[];
   carriers: Record<string, string[]>;
+  route_hours: Record<string, number[]>;
   cols: string[];
   rows: (number | null)[][];
 }
@@ -243,10 +244,23 @@ function updateList() {
   const apFilter  = state.ap >= 0 ? AP_CODES[state.ap] : null;
   const aggStats  = getAggStats();
 
-  // Base filter: airport + delay range + distance range
+  // All four crossfilter dimensions → route table
+  const hourActive = state.hourRange[0] !== 0 || state.hourRange[1] !== 23;
+  const rHours = rmData?.route_hours ?? {};
+
   let filtered = (apFilter ? routes.filter(r => r.origin === apFilter) : routes)
-    .filter(r => inRange(r.mean_delay    ?? 5,   state.delayRange, DELAY_BIN_RANGES))
-    .filter(r => inRange(r.mean_distance ?? 500,  state.distRange,  DIST_BIN_RANGES));
+    .filter(r => {
+      // Hour: does this route operate during the selected hour window?
+      if (!hourActive) return true;
+      const hrs = rHours[`${r.origin}-${r.dest}`];
+      return !hrs || hrs.some(h => h >= state.hourRange[0] && h <= state.hourRange[1]);
+    })
+    .filter(r => {
+      // Delay: use time-period mean (ArrDelay, can be negative) when available
+      const md = aggStats?.get(`${r.origin}-${r.dest}`)?.meanDelay ?? r.mean_delay;
+      return inRange(md ?? 0, state.delayRange, DELAY_BIN_RANGES);
+    })
+    .filter(r => inRange(r.mean_distance ?? 500, state.distRange, DIST_BIN_RANGES));
 
   // If we have time-filtered agg stats, only show routes with flights in that window
   if (aggStats) {

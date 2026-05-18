@@ -37,7 +37,7 @@ DB_N = len(DELAY_EDGES) - 1  # 14
 DIST_EDGES = [0, 200, 400, 600, 800, 1000, 1200, 1500, 1800, 2200, 2700, np.inf]
 XB_N = len(DIST_EDGES) - 1  # 11
 
-feat2['delay_bin'] = pd.cut(feat2['ArrDelayMinutes'], bins=DELAY_EDGES, right=False, labels=False)
+feat2['delay_bin'] = pd.cut(feat2['ArrDelay'], bins=DELAY_EDGES, right=False, labels=False)
 feat2['dist_bin']  = pd.cut(feat2['Distance'],        bins=DIST_EDGES,  right=False, labels=False)
 
 KEY = ['Origin', 'year', 'month', 'dep_hour']
@@ -106,7 +106,8 @@ print(f'Columns:   {len(out_data["cols"])}  (7 base + {DB_N} delay + {XB_N} dist
 print(f'Size:      {sz/1e3:.1f} KB')
 print(f'Saved:     {out}')
 
-# Early arrival summary
-early_n = sum(sum(r[7 + i] for i in range(6)) for r in records)  # db0-db5 = delay < 0
-all_op  = sum(r[4] - r[5] for r in records)                       # n - nc = operated
-print(f'\nEarly arrivals (delay < 0): {early_n:,}  ({early_n/all_op*100:.1f}% of operated)')
+# Early arrival summary (bins 0-5 = ArrDelay < 0)
+early_n = sum(sum(r[7 + i] for i in range(6)) for r in records)
+all_op  = sum(sum(r[7 + i] for i in range(DB_N)) for r in records)
+if all_op:
+    print(f'\nEarly arrivals (ArrDelay < 0): {early_n:,}  ({early_n/all_op*100:.1f}% of operated)')

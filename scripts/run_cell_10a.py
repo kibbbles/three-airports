@@ -40,6 +40,18 @@ route_carriers: dict = {}
 for (orig, dest), grp in rc.groupby(['Origin', 'Dest']):
     route_carriers[f'{orig}-{dest}'] = grp.head(3)['Reporting_Airline'].tolist()
 
+print('Computing operating hours per route …')
+feat_op2['dep_hour'] = (feat_op2['CRSDepTime'] // 100).clip(0, 23)
+rh = (
+    feat_op2.groupby(['Origin', 'Dest', 'dep_hour'])
+    .size()
+    .reset_index(name='n')
+)
+route_hours: dict = {}
+for (orig, dest), grp in rh.groupby(['Origin', 'Dest']):
+    active = sorted(grp[grp['n'] >= 50]['dep_hour'].tolist())
+    route_hours[f'{orig}-{dest}'] = active
+
 print('Aggregating monthly route stats …')
 rm = (
     feat_op2
@@ -47,7 +59,7 @@ rm = (
     .agg(
         n          = ('is_late',         'count'),
         late       = ('is_late',         'sum'),
-        mean_delay = ('ArrDelayMinutes', 'mean'),
+        mean_delay = ('ArrDelay', 'mean'),
         mean_fare  = ('db1b_avg_fare',   'mean'),
     )
     .reset_index()
@@ -73,11 +85,12 @@ for _, r in rm.iterrows():
 out = EXPORTS / 'route_monthly.json'
 with open(out, 'w') as f:
     json.dump({
-        'origins':  AIRPORTS,
-        'dests':    all_dests,
-        'carriers': route_carriers,
-        'cols':     ['o', 'd', 'y', 'm', 'n', 'lr', 'md', 'mf'],
-        'rows':     records,
+        'origins':     AIRPORTS,
+        'dests':       all_dests,
+        'carriers':    route_carriers,
+        'route_hours': route_hours,
+        'cols':        ['o', 'd', 'y', 'm', 'n', 'lr', 'md', 'mf'],
+        'rows':        records,
     }, f, separators=(',', ':'))
 
 print(f'\nRoute monthly:  {len(records):,} rows  |  {out.stat().st_size/1e3:.1f} KB')
