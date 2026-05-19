@@ -710,14 +710,15 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
     font-size: 0.78rem;
     color: var(--muted);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+    gap: 0.4rem;
+    text-align: center;
   }
   #cfd-list-count { color: #e8e8e8; font-weight: 600; }
   .cfd-totals-note { color: #444; font-size: 0.72rem; }
-  .cfd-summary { display: flex; flex-direction: column; gap: 0.1rem; }
-  .cfd-date-label { font-size: 0.7rem; color: #555; }
+  .cfd-summary { display: flex; flex-direction: column; gap: 0.05rem; }
+  .cfd-date-label { font-size: 0.78rem; color: var(--muted); }
 
   #cfd-list {
     margin-top: 0.5rem;
