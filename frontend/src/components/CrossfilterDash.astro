@@ -11,7 +11,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <button class="cfd-apbtn bwi"    data-ap="2">BWI</button>
     </div>
     <button id="cfd-reset" class="cfd-reset">reset filters</button>
-    <p class="cfd-count"><span id="cfd-n">loading…</span> flights selected</p>
+    <div class="cfd-count">
+      <div id="cfd-date-label" class="cfd-date-label">Jan '15 – Jan '26</div>
+      <div><span id="cfd-n">loading…</span> flights selected</div>
+      <div><span id="cfd-list-count">—</span> routes</div>
+    </div>
   </div>
 
   <div class="cfd-grid">
@@ -34,10 +38,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   </div>
 
   <aside id="cfd-totals">
-    <div class="cfd-summary">
-      <div id="cfd-date-label" class="cfd-date-label">Jan '15 – Jan '26</div>
-      <span><span id="cfd-list-count">—</span> routes.</span>
-    </div>
     <span class="cfd-totals-note" id="cfd-totals-note">Table filters by airport, date, hour, and distance. Selecting a delay range re-sorts by late rate — most delayed routes first.</span>
   </aside>
 
@@ -651,8 +651,19 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .cfd-apbtn.iad.active { border-color: #4e9af1; color: #4e9af1; }
   .cfd-apbtn.dca.active { border-color: #f97316; color: #f97316; }
   .cfd-apbtn.bwi.active { border-color: #22c55e; color: #22c55e; }
-  .cfd-count { font-size: 0.8rem; color: var(--muted); margin: 0; margin-left: auto; }
+  .cfd-count {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.05rem;
+    text-align: right;
+  }
+  .cfd-date-label { font-size: 0.78rem; color: var(--muted); }
   #cfd-n { color: #e8e8e8; font-weight: 600; }
+  #cfd-list-count { color: #e8e8e8; font-weight: 600; }
 
   .cfd-reset {
     background: none;
@@ -705,20 +716,8 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   }
   :global(.brush .overlay) { cursor: crosshair !important; }
 
-  #cfd-totals {
-    margin-top: 1.25rem;
-    font-size: 0.78rem;
-    color: var(--muted);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.4rem;
-    text-align: center;
-  }
-  #cfd-list-count { color: #e8e8e8; font-weight: 600; }
+  #cfd-totals { margin-top: 1.25rem; }
   .cfd-totals-note { color: #444; font-size: 0.72rem; }
-  .cfd-summary { display: flex; flex-direction: column; gap: 0.05rem; }
-  .cfd-date-label { font-size: 0.78rem; color: var(--muted); }
 
   #cfd-list {
     margin-top: 0.5rem;
