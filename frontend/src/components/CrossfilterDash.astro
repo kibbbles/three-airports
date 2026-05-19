@@ -34,7 +34,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   </div>
 
   <aside id="cfd-totals">
-    <span><span id="cfd-list-count">—</span> routes.</span>
+    <div class="cfd-summary">
+      <div id="cfd-date-label" class="cfd-date-label">Jan '15 – Jan '26</div>
+      <span><span id="cfd-list-count">—</span> routes.</span>
+    </div>
     <span class="cfd-totals-note" id="cfd-totals-note">Table filters by airport, date, hour, and distance. Selecting a delay range re-sorts by late rate — most delayed routes first.</span>
   </aside>
 
@@ -535,6 +538,8 @@ function render() {
   updateBars(distChart.ctx,  xBg,    xFg);
   updateBars(dateChart.ctx,  dateBg, dateFg);
   document.getElementById('cfd-n')!.textContent = total.toLocaleString();
+  document.getElementById('cfd-date-label')!.textContent =
+    `${DATE_LABELS[state.dateRange[0]]} – ${DATE_LABELS[state.dateRange[1]]}`;
   updateList();
 }
 
@@ -711,6 +716,8 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   }
   #cfd-list-count { color: #e8e8e8; font-weight: 600; }
   .cfd-totals-note { color: #444; font-size: 0.72rem; }
+  .cfd-summary { display: flex; flex-direction: column; gap: 0.1rem; }
+  .cfd-date-label { font-size: 0.7rem; color: #555; }
 
   #cfd-list {
     margin-top: 0.5rem;
