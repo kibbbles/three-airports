@@ -10,6 +10,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <button class="cfd-apbtn dca"    data-ap="1">DCA</button>
       <button class="cfd-apbtn bwi"    data-ap="2">BWI</button>
     </div>
+    <button id="cfd-reset" class="cfd-reset">reset filters</button>
     <p class="cfd-count"><span id="cfd-n">loading…</span> flights selected</p>
   </div>
 
@@ -33,7 +34,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   </div>
 
   <aside id="cfd-totals">
-    <span id="cfd-list-count">—</span> routes.
+    <span><span id="cfd-list-count">—</span> routes.</span>
     <span class="cfd-totals-note" id="cfd-totals-note">Table filters by airport, date, hour, and distance. Selecting a delay range re-sorts by late rate — most delayed routes first.</span>
   </aside>
 
@@ -466,7 +467,12 @@ function initBrushChart(
   brushG.call(brush);
   brushG.select('.overlay').attr('fill', 'transparent');
 
-  return { ctx: { g, xSc, ySc, cW, cH } };
+  function clear() {
+    brushG.call(brush.move, null);
+    positionGrips(null);
+  }
+
+  return { ctx: { g, xSc, ySc, cW, cH }, clear };
 }
 
 // ── update bars ────────────────────────────────────────────────────
@@ -532,7 +538,26 @@ function render() {
   updateList();
 }
 
+function resetFilters() {
+  state.ap         = -1;
+  state.hourRange  = [0, 23];
+  state.dateRange  = [0, 132];
+  state.delayRange = [0, 13];
+  state.distRange  = [0, 14];
+  sortCol = 'n';
+  sortDir = -1;
+  hourChart?.clear();
+  delayChart?.clear();
+  distChart?.clear();
+  dateChart?.clear();
+  document.querySelectorAll('#cfd-ap .cfd-apbtn').forEach(b => b.classList.remove('active'));
+  document.querySelector<HTMLElement>('#cfd-ap .cfd-apbtn[data-ap="-1"]')!.classList.add('active');
+  render();
+}
+
 function initCharts() {
+  const isMobile = window.innerWidth <= 640;
+
   hourChart  = initBrushChart(
     document.getElementById('cfd-hour')  as SVGSVGElement,
     HOUR_LABELS,
@@ -549,14 +574,14 @@ function initCharts() {
     document.getElementById('cfd-dist')  as SVGSVGElement,
     DIST_LABELS,
     (lo, hi) => { state.distRange  = [lo, hi]; render(); },
-    (_, i) => i % 2 === 0,   // 0, 400, 800, 1.2k, 1.6k, 2k, 2.4k, 2.8k+
+    (_, i) => i % 2 === 0,
   );
   dateChart  = initBrushChart(
     document.getElementById('cfd-date')  as SVGSVGElement,
     DATE_LABELS,
     (lo, hi) => { state.dateRange  = [lo, hi]; render(); },
-    (_, i) => i % 12 === 0,   // Jan label + tick only
-    4,                          // tick mark below each Jan bar
+    (_, i) => i % (isMobile ? 24 : 12) === 0,
+    4,
   );
   // Column sort headers
   document.querySelectorAll<HTMLElement>('#cfd-table th.sortable').forEach(th => {
@@ -571,6 +596,8 @@ function initCharts() {
       render();
     });
   });
+
+  document.getElementById('cfd-reset')!.addEventListener('click', resetFilters);
 
   render();
 }
@@ -621,6 +648,19 @@ document.querySelectorAll<HTMLButtonElement>('#cfd-ap .cfd-apbtn').forEach(btn =
   .cfd-apbtn.bwi.active { border-color: #22c55e; color: #22c55e; }
   .cfd-count { font-size: 0.8rem; color: var(--muted); margin: 0; }
   #cfd-n { color: #e8e8e8; font-weight: 600; }
+
+  .cfd-reset {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: #3a3d4a;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: color 0.15s;
+  }
+  .cfd-reset:hover { color: #888; }
 
   .cfd-grid {
     display: grid;
