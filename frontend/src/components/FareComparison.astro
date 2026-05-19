@@ -5,11 +5,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 <div id="fare-cmp" data-base={base}>
   <div class="fare-grid">
     <figure class="fare-panel">
-      <figcaption>Average fare by year</figcaption>
+      <figcaption>Average domestic fare by year <em>(2015–2026)</em></figcaption>
       <svg id="fare-trend" class="fare-svg"></svg>
     </figure>
     <figure class="fare-panel fare-panel-routes">
-      <figcaption>Shared destinations — avg fare by departure airport <em>(top 30 by volume)</em></figcaption>
+      <figcaption>Shared domestic destinations — avg fare by departure airport <em>(top 30 by volume, 2015–2026)</em></figcaption>
       <div id="fare-routes-wrap">
         <svg id="fare-routes" class="fare-routes-svg"></svg>
       </div>
