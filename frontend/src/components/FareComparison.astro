@@ -241,7 +241,7 @@ function buildDumbbell() {
           { ap: 'IAD', val: r.IAD, color: COLORS['IAD'] },
           { ap: 'DCA', val: r.DCA, color: COLORS['DCA'] },
           { ap: 'BWI', val: r.BWI, color: COLORS['BWI'] },
-        ], `${total.toLocaleString()} flights, 2015–2026`);
+        ], `${total.toLocaleString()} flights`);
         select(event.currentTarget as SVGRectElement).attr('fill', 'rgba(255,255,255,0.04)');
       })
       .on('mouseleave', (event: MouseEvent) => {
