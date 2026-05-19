@@ -190,7 +190,7 @@ function buildDumbbell() {
   const W      = Math.max(wrap.getBoundingClientRect().width - 4, 260);
   const ROW_H  = 26;
   const routes = data.shared_routes;
-  const pad    = { t: 24, r: 16, b: 8, l: 118 };
+  const pad    = { t: 24, r: 16, b: 8, l: 185 };
   const cW     = W - pad.l - pad.r;
   const H      = pad.t + routes.length * ROW_H + pad.b;
 
@@ -268,7 +268,7 @@ function buildPremium() {
   const wrap  = svgEl.closest('figure') as HTMLElement;
   const W     = Math.max(wrap.getBoundingClientRect().width - 24, 260);
   const ROW_H = 22;
-  const pad   = { t: 20, r: 90, b: 8, l: 130 };
+  const pad   = { t: 20, r: 90, b: 8, l: 185 };
   const cW    = W - pad.l - pad.r;
 
   // Compute IAD premium per route and sort
@@ -299,12 +299,11 @@ function buildPremium() {
 
   premRows.forEach((r, i) => {
     const y       = i * ROW_H + ROW_H / 2;
-    const barW    = r.premium > 0 ? xSc(r.premium) : 0;
-    const barCol  = r.premium <= 0 ? COLORS['IAD'] : COLORS[r.cheapestAp];
-    const labelTx = r.premium > 0
-      ? `$${r.premium} more than ${r.cheapestAp}`
-      : `IAD cheapest ($${Math.abs(r.premium)} less)`;
-    const labelCol = r.premium <= 0 ? COLORS['IAD'] : '#555';
+    const iadCheapest = r.premium <= 0;
+    const barW    = iadCheapest ? 4 : xSc(r.premium);
+    const barCol  = iadCheapest ? COLORS['IAD'] : COLORS[r.cheapestAp];
+    const labelTx = iadCheapest ? 'IAD cheapest' : `$${r.premium} more than ${r.cheapestAp}`;
+    const labelCol = iadCheapest ? COLORS['IAD'] : '#555';
 
     // Row bg + tooltip
     g.append('rect').attr('class', 'row-bg')
@@ -313,7 +312,7 @@ function buildPremium() {
       .attr('fill', 'transparent').style('cursor', 'default')
       .on('mousemove', (event: MouseEvent) => {
         showTooltip(event.clientX, event.clientY, r.city, [
-          { ap: 'IAD', val: r.iadFare,     color: COLORS['IAD'] },
+          { ap: 'IAD', val: r.iadFare,          color: COLORS['IAD'] },
           { ap: r.cheapestAp, val: r.cheapestFare, color: COLORS[r.cheapestAp] },
         ]);
         select(event.currentTarget as SVGRectElement).attr('fill', 'rgba(255,255,255,0.04)');
@@ -330,13 +329,11 @@ function buildPremium() {
       .attr('pointer-events', 'none').text(r.city);
 
     // Bar
-    if (barW > 0) {
-      g.append('rect')
-        .attr('x', 0).attr('y', i * ROW_H + 6)
-        .attr('width', barW).attr('height', ROW_H - 12)
-        .attr('rx', 2).attr('fill', barCol).attr('opacity', 0.75)
-        .attr('pointer-events', 'none');
-    }
+    g.append('rect')
+      .attr('x', 0).attr('y', i * ROW_H + 6)
+      .attr('width', barW).attr('height', ROW_H - 12)
+      .attr('rx', 2).attr('fill', barCol).attr('opacity', 0.75)
+      .attr('pointer-events', 'none');
 
     // Amount label
     g.append('text')

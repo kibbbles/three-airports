@@ -65,7 +65,9 @@ n_piv    = fare_shared.pivot(index='Dest', columns='Origin', values='n').fillna(
 
 # Dest city names from routes.geojson
 geo_path = EXPORTS / 'routes.geojson'
-dest_city: dict[str, str] = {}
+dest_city: dict[str, str] = {
+    'SRQ': 'Sarasota',  # not in routes.geojson (domestic-only thin route)
+}
 if geo_path.exists():
     geo = json.loads(geo_path.read_text())
     for f in geo['features']:
