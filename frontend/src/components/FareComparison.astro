@@ -16,6 +16,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     </figure>
   </div>
 
+  <figure class="fare-panel fare-panel-premium">
+    <figcaption>IAD fare premium — how much more you pay vs. the cheapest option <em>(same destination)</em></figcaption>
+    <svg id="fare-premium" class="fare-premium-svg"></svg>
+  </figure>
+
   <div id="fare-tooltip" class="fare-tooltip" aria-hidden="true">
     <div class="fare-tt-title"></div>
     <div class="fare-tt-body"></div>
@@ -257,12 +262,96 @@ function buildDumbbell() {
   });
 }
 
+// ── IAD fare premium bar chart ────────────────────────────────────
+function buildPremium() {
+  const svgEl = document.getElementById('fare-premium') as SVGSVGElement;
+  const wrap  = svgEl.closest('figure') as HTMLElement;
+  const W     = Math.max(wrap.getBoundingClientRect().width - 24, 260);
+  const ROW_H = 22;
+  const pad   = { t: 20, r: 90, b: 8, l: 130 };
+  const cW    = W - pad.l - pad.r;
+
+  // Compute IAD premium per route and sort
+  type PremiumRow = { city: string; dest: string; premium: number; cheapestAp: string; cheapestFare: number; iadFare: number };
+  const premRows: PremiumRow[] = data.shared_routes.map(r => {
+    const fares: [string, number][] = AIRPORTS.map(ap => [ap, r[ap as 'IAD'|'DCA'|'BWI']] as [string, number]);
+    const [cheapestAp, cheapestFare] = fares.reduce((a, b) => b[1] < a[1] ? b : a);
+    return { city: r.city, dest: r.dest, premium: Math.round(r.IAD - cheapestFare), cheapestAp, cheapestFare, iadFare: r.IAD };
+  });
+  // Routes where IAD is not cheapest first (descending premium), then IAD-is-cheapest at end
+  premRows.sort((a, b) => b.premium - a.premium);
+
+  const H = pad.t + premRows.length * ROW_H + pad.b;
+  const maxPremium = Math.max(...premRows.map(r => r.premium), 10);
+  const xSc = scaleLinear().domain([0, Math.ceil(maxPremium / 25) * 25]).range([0, cW]).nice();
+
+  const svg = select(svgEl).attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${pad.l},${pad.t})`);
+
+  // Top axis
+  g.append('g')
+    .call(axisBottom(xSc).ticks(5).tickFormat(v => `$${v}`).tickSize(-(premRows.length * ROW_H)))
+    .call(a => {
+      a.select('.domain').remove();
+      a.selectAll('line').attr('stroke', '#1a1d2a');
+      a.selectAll('text').attr('fill', '#444').attr('font-size', '10px').attr('dy', '-0.5em');
+    });
+
+  premRows.forEach((r, i) => {
+    const y       = i * ROW_H + ROW_H / 2;
+    const barW    = r.premium > 0 ? xSc(r.premium) : 0;
+    const barCol  = r.premium <= 0 ? COLORS['IAD'] : COLORS[r.cheapestAp];
+    const labelTx = r.premium > 0
+      ? `$${r.premium} more than ${r.cheapestAp}`
+      : `IAD cheapest ($${Math.abs(r.premium)} less)`;
+    const labelCol = r.premium <= 0 ? COLORS['IAD'] : '#555';
+
+    // Row bg + tooltip
+    g.append('rect').attr('class', 'row-bg')
+      .attr('x', -pad.l).attr('width', W)
+      .attr('y', i * ROW_H).attr('height', ROW_H)
+      .attr('fill', 'transparent').style('cursor', 'default')
+      .on('mousemove', (event: MouseEvent) => {
+        showTooltip(event.clientX, event.clientY, r.city, [
+          { ap: 'IAD', val: r.iadFare,     color: COLORS['IAD'] },
+          { ap: r.cheapestAp, val: r.cheapestFare, color: COLORS[r.cheapestAp] },
+        ]);
+        select(event.currentTarget as SVGRectElement).attr('fill', 'rgba(255,255,255,0.04)');
+      })
+      .on('mouseleave', (event: MouseEvent) => {
+        hideTooltip();
+        select(event.currentTarget as SVGRectElement).attr('fill', 'transparent');
+      });
+
+    // City label
+    g.append('text')
+      .attr('x', -8).attr('y', y + 4)
+      .attr('text-anchor', 'end').attr('fill', '#aaa').attr('font-size', '11px')
+      .attr('pointer-events', 'none').text(r.city);
+
+    // Bar
+    if (barW > 0) {
+      g.append('rect')
+        .attr('x', 0).attr('y', i * ROW_H + 6)
+        .attr('width', barW).attr('height', ROW_H - 12)
+        .attr('rx', 2).attr('fill', barCol).attr('opacity', 0.75)
+        .attr('pointer-events', 'none');
+    }
+
+    // Amount label
+    g.append('text')
+      .attr('x', barW + 6).attr('y', y + 4)
+      .attr('fill', labelCol).attr('font-size', '10px')
+      .attr('pointer-events', 'none').text(labelTx);
+  });
+}
+
 // Init
 const ro = new ResizeObserver(entries => {
-  if (entries[0].contentRect.width > 0) { ro.disconnect(); buildTrend(); buildDumbbell(); }
+  if (entries[0].contentRect.width > 0) { ro.disconnect(); buildTrend(); buildDumbbell(); buildPremium(); }
 });
 ro.observe(mount);
-if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); buildTrend(); buildDumbbell(); }
+if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); buildTrend(); buildDumbbell(); buildPremium(); }
 </script>
 
 <style>
@@ -293,10 +382,13 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); buildTrend(); bu
 
   .fare-svg { display: block; width: 100%; }
 
-  #fare-routes-wrap {
-    overflow: visible;
+  #fare-routes-wrap { overflow: visible; }
+  .fare-routes-svg  { display: block; width: 100%; }
+
+  .fare-panel-premium {
+    margin-top: 1rem;
   }
-  .fare-routes-svg { display: block; width: 100%; }
+  .fare-premium-svg { display: block; width: 100%; }
 
   /* Tooltip */
   .fare-tooltip {
