@@ -87,12 +87,11 @@ for dest in shared_dests:
     if ok:
         shared_routes.append(row)
 
-# Sort by total flight volume, keep top 30
+# Sort by total flight volume
 shared_routes.sort(
     key=lambda r: r.get('n_IAD', 0) + r.get('n_DCA', 0) + r.get('n_BWI', 0),
     reverse=True,
 )
-shared_routes = shared_routes[:30]
 
 # ── Output ────────────────────────────────────────────────────────────
 out = {
