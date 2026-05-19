@@ -15,6 +15,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       </div>
     </figure>
   </div>
+
+  <div id="fare-tooltip" class="fare-tooltip" aria-hidden="true">
+    <div class="fare-tt-title"></div>
+    <div class="fare-tt-body"></div>
+  </div>
 </div>
 
 <script>
@@ -31,12 +36,42 @@ interface FareData {
   }>;
 }
 
-const mount  = document.getElementById('fare-cmp') as HTMLElement;
-const base   = mount.dataset.base ?? '';
-const data   = await fetch(`${base}/data/fare_comparison.json`).then(r => r.json()) as FareData;
+const mount = document.getElementById('fare-cmp') as HTMLElement;
+const base  = mount.dataset.base ?? '';
+const data  = await fetch(`${base}/data/fare_comparison.json`).then(r => r.json()) as FareData;
 
-const AIRPORTS  = data.airports;
-const COLORS    = data.colors;
+const AIRPORTS = data.airports;
+const COLORS   = data.colors;
+
+// ── Shared tooltip ────────────────────────────────────────────────
+const ttEl    = document.getElementById('fare-tooltip')!;
+const ttTitle = ttEl.querySelector<HTMLElement>('.fare-tt-title')!;
+const ttBody  = ttEl.querySelector<HTMLElement>('.fare-tt-body')!;
+
+type TtRow = { ap: string; val: number; color: string };
+
+function showTooltip(clientX: number, clientY: number, title: string, rows: TtRow[]) {
+  ttTitle.textContent = title;
+  ttBody.innerHTML = rows.map(r =>
+    `<div class="fare-tt-row">
+      <span class="fare-tt-dot" style="background:${r.color}"></span>
+      <span class="fare-tt-ap">${r.ap}</span>
+      <span class="fare-tt-val">$${Math.round(r.val)}</span>
+    </div>`
+  ).join('');
+
+  const TT_W = 148;
+  let x = clientX + 16;
+  let y = clientY - 12;
+  if (x + TT_W > window.innerWidth - 8) x = clientX - TT_W - 8;
+  if (y < 8) y = 8;
+
+  ttEl.style.left    = x + 'px';
+  ttEl.style.top     = y + 'px';
+  ttEl.style.opacity = '1';
+}
+
+function hideTooltip() { ttEl.style.opacity = '0'; }
 
 // ── Trend line chart ──────────────────────────────────────────────
 function buildTrend() {
@@ -62,7 +97,7 @@ function buildTrend() {
              Math.ceil((d3max(allFares)  ?? 400) / 50) * 50])
     .range([cH, 0]).nice();
 
-  // Grid lines
+  // Grid
   g.selectAll('line.grid').data(ySc.ticks(5)).join('line').attr('class', 'grid')
     .attr('x1', 0).attr('x2', cW)
     .attr('y1', d => ySc(d)).attr('y2', d => ySc(d))
@@ -72,30 +107,21 @@ function buildTrend() {
   g.append('g').attr('transform', `translate(0,${cH})`)
     .call(axisBottom(xSc).tickValues(years.filter((_, i) => i % 2 === 0)).tickSize(0))
     .call(a => { a.select('.domain').remove(); a.selectAll('text').attr('fill', '#555').attr('font-size', '10px').attr('dy', '1.2em'); });
-
   g.append('g')
     .call(axisLeft(ySc).ticks(5).tickFormat(v => `$${v}`).tickSize(0))
     .call(a => { a.select('.domain').remove(); a.selectAll('text').attr('fill', '#444').attr('font-size', '10px'); });
 
-  // Lines + end labels
+  // Lines
   const lineGen = d3line<{ y: number; v: number }>()
-    .x(d => xSc(d.y)!)
-    .y(d => ySc(d.v))
-    .defined(d => d.v !== null);
+    .x(d => xSc(d.y)!).y(d => ySc(d.v)).defined(d => d.v !== null);
 
   for (const ap of AIRPORTS) {
     const pts = years
       .map((y, i) => ({ y, v: (data.trend[ap] as (number | null)[])[i] as number }))
       .filter(d => d.v !== null);
-
-    g.append('path')
-      .datum(pts)
-      .attr('fill', 'none')
-      .attr('stroke', COLORS[ap])
-      .attr('stroke-width', 2)
+    g.append('path').datum(pts)
+      .attr('fill', 'none').attr('stroke', COLORS[ap]).attr('stroke-width', 2)
       .attr('d', lineGen as any);
-
-    // Dot at last point
     const last = pts[pts.length - 1];
     if (last) {
       g.append('circle').attr('cx', xSc(last.y)!).attr('cy', ySc(last.v)).attr('r', 3).attr('fill', COLORS[ap]);
@@ -105,6 +131,51 @@ function buildTrend() {
         .text(ap);
     }
   }
+
+  // ── Cursor group (crosshair + dots) ──────────────────────────────
+  const cursorG = svg.append('g').attr('pointer-events', 'none')
+    .attr('transform', `translate(${pad.l},${pad.t})`).style('opacity', '0');
+  cursorG.append('line').attr('class', 'c-line')
+    .attr('y1', 0).attr('y2', cH)
+    .attr('stroke', '#666').attr('stroke-width', 1).attr('stroke-dasharray', '3 3');
+  const cDots: Record<string, ReturnType<typeof cursorG.append>> = {};
+  for (const ap of AIRPORTS) {
+    cDots[ap] = cursorG.append('circle').attr('r', 4.5)
+      .attr('fill', COLORS[ap]).attr('stroke', '#0e1017').attr('stroke-width', 1.5);
+  }
+
+  // Transparent overlay for mouse events
+  svg.append('rect')
+    .attr('transform', `translate(${pad.l},${pad.t})`)
+    .attr('width', cW).attr('height', cH)
+    .attr('fill', 'transparent').style('cursor', 'crosshair')
+    .on('mousemove', (event: MouseEvent) => {
+      const svgRect = svgEl.getBoundingClientRect();
+      const mx = event.clientX - svgRect.left - pad.l;
+
+      // Nearest year
+      let closest = years[0], minDist = Infinity;
+      for (const yr of years) {
+        const d = Math.abs((xSc(yr) ?? 0) - mx);
+        if (d < minDist) { minDist = d; closest = yr; }
+      }
+
+      const cx = xSc(closest)!;
+      cursorG.select('line.c-line').attr('x1', cx).attr('x2', cx);
+
+      const rows: TtRow[] = [];
+      for (const ap of AIRPORTS) {
+        const idx = years.indexOf(closest);
+        const val = (data.trend[ap] as (number | null)[])[idx];
+        if (val != null) {
+          (cDots[ap] as any).attr('cx', cx).attr('cy', ySc(val));
+          rows.push({ ap, val, color: COLORS[ap] });
+        }
+      }
+      cursorG.style('opacity', '1');
+      showTooltip(event.clientX, event.clientY, String(closest), rows);
+    })
+    .on('mouseleave', () => { cursorG.style('opacity', '0'); hideTooltip(); });
 }
 
 // ── Dumbbell chart ────────────────────────────────────────────────
@@ -143,39 +214,50 @@ function buildDumbbell() {
     const lo    = Math.min(...fares);
     const hi    = Math.max(...fares);
 
-    // Row background on hover (handled via CSS)
+    // Row background — hover highlight + tooltip trigger
     g.append('rect').attr('class', 'row-bg')
       .attr('x', -pad.l).attr('width', W)
       .attr('y', i * ROW_H).attr('height', ROW_H)
-      .attr('fill', 'transparent');
+      .attr('fill', 'transparent').style('cursor', 'default')
+      .on('mousemove', (event: MouseEvent) => {
+        showTooltip(event.clientX, event.clientY, r.city, [
+          { ap: 'IAD', val: r.IAD, color: COLORS['IAD'] },
+          { ap: 'DCA', val: r.DCA, color: COLORS['DCA'] },
+          { ap: 'BWI', val: r.BWI, color: COLORS['BWI'] },
+        ]);
+        select(event.currentTarget as SVGRectElement).attr('fill', 'rgba(255,255,255,0.04)');
+      })
+      .on('mouseleave', (event: MouseEvent) => {
+        hideTooltip();
+        select(event.currentTarget as SVGRectElement).attr('fill', 'transparent');
+      });
 
     // City label
     g.append('text')
       .attr('x', -8).attr('y', y + 4)
       .attr('text-anchor', 'end')
       .attr('fill', '#aaa').attr('font-size', '11px')
+      .attr('pointer-events', 'none')
       .text(r.city);
 
-    // Connecting line lo→hi
+    // Connecting range line
     g.append('line')
       .attr('x1', xSc(lo)).attr('x2', xSc(hi))
       .attr('y1', y).attr('y2', y)
-      .attr('stroke', '#2a2d3a').attr('stroke-width', 2);
+      .attr('stroke', '#2a2d3a').attr('stroke-width', 2)
+      .attr('pointer-events', 'none');
 
-    // Dots per airport
+    // Dots
     for (const ap of AIRPORTS) {
-      const fare = r[ap as 'IAD'|'DCA'|'BWI'];
       g.append('circle')
-        .attr('cx', xSc(fare)).attr('cy', y).attr('r', 5)
-        .attr('fill', COLORS[ap]).attr('stroke', '#0e1017').attr('stroke-width', 1.5);
-
-      // Tooltip-style title
-      g.append('title').text(`${ap}: $${fare}`);
+        .attr('cx', xSc(r[ap as 'IAD'|'DCA'|'BWI'])).attr('cy', y).attr('r', 5)
+        .attr('fill', COLORS[ap]).attr('stroke', '#0e1017').attr('stroke-width', 1.5)
+        .attr('pointer-events', 'none');
     }
   });
 }
 
-// Init on first layout pass
+// Init
 const ro = new ResizeObserver(entries => {
   if (entries[0].contentRect.width > 0) { ro.disconnect(); buildTrend(); buildDumbbell(); }
 });
@@ -217,5 +299,49 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); buildTrend(); bu
   }
   .fare-routes-svg { display: block; width: 100%; }
 
-  :global(#fare-routes .row-bg:hover) { fill: rgba(255,255,255,0.03) !important; }
+  /* Tooltip */
+  .fare-tooltip {
+    position: fixed;
+    background: #141620;
+    border: 1px solid #2a2d3a;
+    border-radius: 8px;
+    padding: 0.55rem 0.75rem 0.6rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.08s;
+    z-index: 200;
+    min-width: 130px;
+  }
+  .fare-tt-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+  }
+  .fare-tt-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.12rem 0;
+  }
+  .fare-tt-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .fare-tt-ap {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #ccc;
+    width: 2.4em;
+  }
+  .fare-tt-val {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: #e8e8e8;
+    margin-left: auto;
+  }
 </style>
