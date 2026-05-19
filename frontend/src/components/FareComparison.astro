@@ -9,7 +9,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <svg id="fare-trend" class="fare-svg"></svg>
     </figure>
     <figure class="fare-panel fare-panel-routes">
-      <figcaption>Shared domestic destinations — avg fare by departure airport <em>(52 destinations, 2015–2026)</em></figcaption>
+      <figcaption>Shared domestic destinations — avg fare by departure airport <em>(52 destinations, 2015–2026 · gray bar = total flights)</em></figcaption>
       <div id="fare-routes-wrap">
         <svg id="fare-routes" class="fare-routes-svg"></svg>
       </div>
@@ -55,7 +55,7 @@ const ttBody  = ttEl.querySelector<HTMLElement>('.fare-tt-body')!;
 
 type TtRow = { ap: string; val: number; color: string };
 
-function showTooltip(clientX: number, clientY: number, title: string, rows: TtRow[]) {
+function showTooltip(clientX: number, clientY: number, title: string, rows: TtRow[], footer?: string) {
   ttTitle.textContent = title;
   ttBody.innerHTML = rows.map(r =>
     `<div class="fare-tt-row">
@@ -63,7 +63,7 @@ function showTooltip(clientX: number, clientY: number, title: string, rows: TtRo
       <span class="fare-tt-ap">${r.ap}</span>
       <span class="fare-tt-val">$${Math.round(r.val)}</span>
     </div>`
-  ).join('');
+  ).join('') + (footer ? `<div class="fare-tt-footer">${footer}</div>` : '');
 
   const TT_W = 148;
   let x = clientX + 16;
@@ -203,6 +203,10 @@ function buildDumbbell() {
              Math.ceil((d3max(allFares)  ?? 500) / 50) * 50])
     .range([0, cW]).nice();
 
+  const totals   = routes.map(r => r.n_IAD + r.n_DCA + r.n_BWI);
+  const maxTotal = Math.max(...totals);
+  const volSc    = scaleLinear().domain([0, maxTotal]).range([0, cW]);
+
   // Top axis
   g.append('g')
     .call(axisBottom(xSc).ticks(6).tickFormat(v => `$${v}`).tickSize(-(routes.length * ROW_H)))
@@ -218,6 +222,14 @@ function buildDumbbell() {
     const fares = AIRPORTS.map(ap => r[ap as 'IAD'|'DCA'|'BWI']);
     const lo    = Math.min(...fares);
     const hi    = Math.max(...fares);
+    const total = r.n_IAD + r.n_DCA + r.n_BWI;
+
+    // Volume bar — drawn first so it sits behind everything
+    g.append('rect')
+      .attr('x', 0).attr('y', i * ROW_H)
+      .attr('width', volSc(total)).attr('height', ROW_H)
+      .attr('fill', 'rgba(255,255,255,0.055)')
+      .attr('pointer-events', 'none');
 
     // Row background — hover highlight + tooltip trigger
     g.append('rect').attr('class', 'row-bg')
@@ -229,7 +241,7 @@ function buildDumbbell() {
           { ap: 'IAD', val: r.IAD, color: COLORS['IAD'] },
           { ap: 'DCA', val: r.DCA, color: COLORS['DCA'] },
           { ap: 'BWI', val: r.BWI, color: COLORS['BWI'] },
-        ]);
+        ], `${total.toLocaleString()} flights, 2015–2026`);
         select(event.currentTarget as SVGRectElement).attr('fill', 'rgba(255,255,255,0.04)');
       })
       .on('mouseleave', (event: MouseEvent) => {
@@ -431,5 +443,12 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); buildTrend(); bu
     font-variant-numeric: tabular-nums;
     color: #e8e8e8;
     margin-left: auto;
+  }
+  .fare-tt-footer {
+    font-size: 0.68rem;
+    color: #555;
+    margin-top: 0.35rem;
+    padding-top: 0.3rem;
+    border-top: 1px solid #2a2d3a;
   }
 </style>
