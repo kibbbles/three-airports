@@ -79,17 +79,17 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     <div class="prose">
       <h2>Explore 2.7 million domestic flights</h2>
       <p>
-        Filter by airport, then drag to select a date range or hour, and click
-        individual bars on the delay and distance charts to toggle them. Every chart
-        updates based on the selections in all the others — so if you filter to
-        morning flights in summer, you immediately see how that changes the delay
-        distribution.
+        Filter by airport using the buttons above, then drag across any chart to select
+        a range — date, hour of day, arrival delay, or flight distance. Every chart
+        updates based on what you've selected in all the others, so dragging to morning
+        flights in summer immediately shows how that changes the delay and distance
+        distributions.
       </p>
       <p>
-        The count starts at 2.7 million, not 3.2 million, for two reasons: international
-        flights are excluded because BTS on-time data only covers domestic routes, and
-        cancelled flights are excluded because they have no arrival delay to bin. That
-        leaves 2,748,004 domestic flights that actually departed and landed.
+        The count starts at 2.7 million, not 3.2 million, for two reasons: 335,719
+        international flights are excluded because BTS on-time data only covers domestic
+        routes, and 75,040 cancelled flights are excluded because they have no arrival
+        delay. That leaves 2,748,004 domestic flights that actually departed and landed.
       </p>
     </div>
     <div class="section-chart full-bleed">
