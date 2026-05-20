@@ -1,11 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import GlobeHero from '../components/GlobeHero.astro';
-import DelayHeatmap from '../components/DelayHeatmap.astro';
 import CrossfilterDash from '../components/CrossfilterDash.astro';
 import FareComparison from '../components/FareComparison.astro';
 import AnomalyList from '../components/AnomalyList.astro';
 import ForecastChart from '../components/ForecastChart.astro';
+import FlightVolumeStreamgraph from '../components/FlightVolumeStreamgraph.astro';
+import SlopeChart from '../components/SlopeChart.astro';
 import summary from '@data/airport_summary.json';
 
 const airports = [
@@ -74,6 +75,19 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     <p class="cards-footnote full-bleed">† Domestic flights only — BTS on-time data covers domestic routes. "Arrived late" = 15+ min behind scheduled arrival.</p>
   </section>
 
+  <!-- ── Section 1b: Flight volume streamgraph ─────────────────── -->
+  <section>
+    <div class="prose">
+      <h2>Volume over time</h2>
+      <p>
+        Flight counts at all three airports from 2015 through early 2026. The COVID collapse in spring 2020 is the most dramatic single event in the data — all three airports dropped simultaneously, then recovered at different rates. DCA snapped back faster; IAD took longer to rebuild its schedule.
+      </p>
+    </div>
+    <div class="section-chart full-bleed">
+      <FlightVolumeStreamgraph />
+    </div>
+  </section>
+
   <!-- ── Section 2: Crossfilter ───────────────────────────────── -->
   <section>
     <div class="prose">
@@ -118,23 +132,16 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     </div>
   </section>
 
-  <!-- ── Section 4: Delay heatmaps ──────────────────────────────── -->
+  <!-- ── Section 4: Slope chart ─────────────────────────────────── -->
   <section>
     <div class="prose">
       <h2>When delays happen</h2>
       <p>
-        Morning flights are consistently the most reliable across all three airports.
-        Summer (June–August) and winter (December–January) push late rates highest.
-        Evening departures in July and August are the worst single combination —
-        particularly at BWI, where the 6–9 pm window in summer tops 30%.
-      </p>
-      <p>
-        Select an airport to explore its hour × month delay pattern. Each cell shows
-        the fraction of flights that arrived more than 15 minutes late.
+        Each panel compares the morning late rate (6–10am) to the evening late rate (6–10pm) for one season. The steeper the slope, the worse evenings get relative to mornings. Summer stands out — all three airports have their steepest slopes, with late rates nearly doubling from morning to evening. Fall is the flattest, the best time of year to book an evening flight.
       </p>
     </div>
     <div class="section-chart prose">
-      <DelayHeatmap />
+      <SlopeChart />
     </div>
   </section>
 

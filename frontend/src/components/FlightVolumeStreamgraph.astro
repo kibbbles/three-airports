@@ -1,0 +1,216 @@
+---
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<figure id="streamgraph-wrap" data-base={base} class="streamgraph-fig">
+  <figcaption>Monthly domestic flight volume <em>(2015–2026)</em></figcaption>
+  <svg id="streamgraph-svg" class="streamgraph-svg"></svg>
+  <div class="streamgraph-legend">
+    <span class="sg-leg-item"><span class="sg-dot" style="background:#4e9af1"></span>IAD</span>
+    <span class="sg-leg-item"><span class="sg-dot" style="background:#f97316"></span>DCA</span>
+    <span class="sg-leg-item"><span class="sg-dot" style="background:#22c55e"></span>BWI</span>
+  </div>
+</figure>
+
+<script>
+import {
+  select,
+  stack,
+  stackOffsetWiggle,
+  stackOrderInsideOut,
+  area,
+  curveBasis,
+  scaleTime,
+  scaleLinear,
+  axisBottom,
+  max as d3max,
+} from 'd3';
+
+const COLORS: Record<string, string> = {
+  IAD: '#4e9af1',
+  DCA: '#f97316',
+  BWI: '#22c55e',
+};
+const AIRPORTS = ['IAD', 'DCA', 'BWI'];
+
+interface RouteMonthly {
+  origins: string[];
+  cols: string[];
+  rows: number[][];
+}
+
+const wrap = document.getElementById('streamgraph-wrap') as HTMLElement;
+const base = wrap.dataset.base ?? '';
+const raw  = await fetch(`${base}/data/route_monthly.json`).then(r => r.json()) as RouteMonthly;
+
+const origins = raw.origins; // ['IAD','DCA','BWI']
+
+// Aggregate: sum n (col index 4) per airport per year-month
+const agg: Map<number, Record<string, number>> = new Map();
+for (const row of raw.rows) {
+  const o = row[0];
+  const y = row[2];
+  const m = row[3];
+  const n = row[4];
+  const ym = y * 100 + m;
+  if (!agg.has(ym)) agg.set(ym, { IAD: 0, DCA: 0, BWI: 0 });
+  const apCode = origins[o];
+  const entry = agg.get(ym)!;
+  entry[apCode] = (entry[apCode] ?? 0) + n;
+}
+
+// Build sorted array of { date, IAD, DCA, BWI }
+const sorted = Array.from(agg.entries())
+  .sort((a, b) => a[0] - b[0])
+  .map(([ym, counts]) => {
+    const y = Math.floor(ym / 100);
+    const mo = ym % 100;
+    return { date: new Date(y, mo - 1, 1), IAD: counts.IAD || 0, DCA: counts.DCA || 0, BWI: counts.BWI || 0 };
+  });
+
+const COVID_DATE = new Date(2020, 3, 1); // April 2020
+
+function buildChart() {
+  const svgEl = document.getElementById('streamgraph-svg') as SVGSVGElement;
+  select(svgEl).selectAll('*').remove();
+
+  const W   = Math.max(wrap.getBoundingClientRect().width - 2, 320);
+  const H   = 260;
+  const pad = { t: 10, r: 16, b: 36, l: 16 };
+  const cW  = W - pad.l - pad.r;
+  const cH  = H - pad.t - pad.b;
+
+  const svg = select(svgEl).attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${pad.l},${pad.t})`);
+
+  const xSc = scaleTime()
+    .domain([sorted[0].date, sorted[sorted.length - 1].date])
+    .range([0, cW]);
+
+  // Stack
+  const stackGen = stack<typeof sorted[0]>()
+    .keys(AIRPORTS)
+    .offset(stackOffsetWiggle)
+    .order(stackOrderInsideOut);
+
+  const series = stackGen(sorted);
+
+  const maxY = d3max(series, layer => d3max(layer, d => d[1])) ?? 1;
+  const minY = Math.min(...series.flatMap(layer => layer.map(d => d[0])));
+
+  const ySc = scaleLinear()
+    .domain([minY, maxY])
+    .range([cH, 0]);
+
+  const areaGen = area<[number, number] & { data: typeof sorted[0] }>()
+    .x(d => xSc(d.data.date))
+    .y0(d => ySc(d[0]))
+    .y1(d => ySc(d[1]))
+    .curve(curveBasis) as any;
+
+  // Draw bands
+  series.forEach(layer => {
+    const apCode = layer.key as string;
+    g.append('path')
+      .datum(layer)
+      .attr('fill', COLORS[apCode])
+      .attr('fill-opacity', 0.82)
+      .attr('d', areaGen);
+  });
+
+  // X axis — year ticks only
+  const years: Date[] = [];
+  for (let yr = 2015; yr <= 2026; yr++) {
+    years.push(new Date(yr, 0, 1));
+  }
+
+  const xAxis = axisBottom(xSc)
+    .tickValues(years)
+    .tickFormat((d) => {
+      const yr = (d as Date).getFullYear();
+      return `'${String(yr).slice(2)}`;
+    })
+    .tickSize(4);
+
+  g.append('g')
+    .attr('transform', `translate(0,${cH})`)
+    .call(xAxis)
+    .call(a => {
+      a.select('.domain').attr('stroke', '#2a2d3a');
+      a.selectAll('line').attr('stroke', '#2a2d3a');
+      a.selectAll('text')
+        .attr('fill', '#555')
+        .attr('font-size', '10px')
+        .attr('dy', '1.3em');
+    });
+
+  // COVID vertical dashed line
+  const covidX = xSc(COVID_DATE);
+  const covidY = ySc(maxY);
+
+  g.append('line')
+    .attr('x1', covidX).attr('x2', covidX)
+    .attr('y1', 0).attr('y2', cH)
+    .attr('stroke', '#666')
+    .attr('stroke-width', 1)
+    .attr('stroke-dasharray', '3 3');
+
+  g.append('text')
+    .attr('x', covidX + 4)
+    .attr('y', covidY + 14)
+    .attr('fill', '#555')
+    .attr('font-size', '9px')
+    .text('COVID-19');
+}
+
+const ro = new ResizeObserver(entries => {
+  if (entries[0].contentRect.width > 0) { ro.disconnect(); buildChart(); }
+});
+ro.observe(wrap);
+if (wrap.getBoundingClientRect().width > 0) { ro.disconnect(); buildChart(); }
+</script>
+
+<style>
+  .streamgraph-fig {
+    background: var(--surface);
+    border: 1px solid #2a2d3a;
+    border-radius: 10px;
+    padding: 0.85rem 0.85rem 0.75rem;
+    margin: 0;
+  }
+  .streamgraph-fig figcaption {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #aaa;
+    margin-bottom: 0.6rem;
+  }
+  .streamgraph-fig figcaption em {
+    font-style: normal;
+    font-weight: 400;
+    color: #555;
+  }
+  .streamgraph-svg {
+    display: block;
+    width: 100%;
+  }
+  .streamgraph-legend {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+  .sg-leg-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #aaa;
+  }
+  .sg-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+</style>
