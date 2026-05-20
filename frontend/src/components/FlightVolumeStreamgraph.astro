@@ -170,7 +170,7 @@ function build() {
         row('#4e9af1', 'IAD', nearest.IAD) +
         row('#f97316', 'DCA', nearest.DCA) +
         row('#22c55e', 'BWI', nearest.BWI) +
-        `<div class="fvs-tt-footer"><span>Total</span><span class="fvs-tt-val">${total.toLocaleString()}</span></div>`;
+        `<div class="fvs-tt-footer">Total&nbsp;&nbsp;&nbsp;${total.toLocaleString()}</div>`;
 
       const TT_W = 168;
       let tx = event.clientX + 16;
@@ -272,12 +272,11 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); build(); }
     margin-left: auto;
   }
   #fvs-tt .fvs-tt-footer {
-    display: flex;
-    align-items: center;
     font-size: 0.68rem;
     color: #555;
     margin-top: 0.35rem;
     padding-top: 0.3rem;
     border-top: 1px solid #2a2d3a;
+    text-align: center;
   }
 </style>
