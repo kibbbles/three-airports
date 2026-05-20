@@ -102,17 +102,17 @@ function build() {
       .attr('d', areaGen as any);
   });
 
-  // COVID annotation
-  const covidX = xSc(new Date(2020, 3, 1));
-  g.append('line')
-    .attr('x1', covidX).attr('x2', covidX)
-    .attr('y1', 0).attr('y2', cH)
-    .attr('stroke', 'rgba(255,255,255,0.2)')
-    .attr('stroke-width', 1)
-    .attr('stroke-dasharray', '3 3');
+  // COVID shaded range: first visible drop (Mar 2020) → last airport recovered (Dec 2021)
+  const covidX0 = xSc(new Date(2020, 2, 1));
+  const covidX1 = xSc(new Date(2021, 11, 1));
+  g.append('rect')
+    .attr('x', covidX0).attr('y', 0)
+    .attr('width', covidX1 - covidX0).attr('height', cH)
+    .attr('fill', 'rgba(255,255,255,0.045)')
+    .attr('pointer-events', 'none');
   g.append('text')
-    .attr('x', covidX + 4).attr('y', 12)
-    .attr('fill', 'rgba(255,255,255,0.3)')
+    .attr('x', covidX0 + 4).attr('y', 12)
+    .attr('fill', 'rgba(255,255,255,0.28)')
     .attr('font-size', '9px')
     .text('COVID-19');
 
