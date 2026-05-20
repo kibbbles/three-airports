@@ -5,6 +5,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 <figure id="fvs-wrap" data-base={base} class="fvs-figure">
   <figcaption>Monthly domestic flight volume <em>(2015&#x2013;2026)</em></figcaption>
   <svg id="fvs-svg" class="fvs-svg"></svg>
+  <div id="fvs-tt" class="fvs-tt" aria-hidden="true"></div>
   <div class="fvs-legend">
     <span class="fvs-dot" style="background:#4e9af1"></span>IAD
     <span class="fvs-dot" style="background:#f97316"></span>DCA
@@ -15,10 +16,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 <script>
 import {
   select,
-  stack, stackOffsetWiggle, stackOrderInsideOut,
+  stack,
   area, curveBasis,
   scaleTime, scaleLinear,
-  axisBottom,
+  axisBottom, axisLeft,
 } from 'd3';
 
 interface RMData { origins: string[]; cols: string[]; rows: number[][]; }
@@ -57,8 +58,8 @@ function build() {
   select(svgEl).selectAll('*').remove();
 
   const W   = Math.max(mount.getBoundingClientRect().width - 2, 320);
-  const H   = 260;
-  const pad = { t: 12, r: 16, b: 34, l: 16 };
+  const H   = 280;
+  const pad = { t: 12, r: 16, b: 34, l: 46 };
   const cW  = W - pad.l - pad.r;
   const cH  = H - pad.t - pad.b;
 
@@ -69,21 +70,23 @@ function build() {
     .domain([dataset[0].date, dataset[dataset.length - 1].date])
     .range([0, cW]);
 
-  const stackGen = stack<Datum>()
-    .keys([...KEYS])
-    .offset(stackOffsetWiggle)
-    .order(stackOrderInsideOut);
+  // Standard stacked area (no wiggle — readable y-axis)
+  const stackGen = stack<Datum>().keys([...KEYS]);
+  const layers   = stackGen(dataset);
 
-  const layers = stackGen(dataset);
+  const maxTotal = Math.max(...dataset.map(d => d.IAD + d.DCA + d.BWI));
+  const ySc = scaleLinear()
+    .domain([0, Math.ceil(maxTotal / 5000) * 5000])
+    .range([cH, 0]).nice();
 
-  let yLo = Infinity, yHi = -Infinity;
-  for (const layer of layers) {
-    for (const d of layer) {
-      if (d[0] < yLo) yLo = d[0];
-      if (d[1] > yHi) yHi = d[1];
-    }
-  }
-  const ySc = scaleLinear().domain([yLo, yHi]).range([cH, 0]);
+  // Y axis
+  g.append('g')
+    .call(axisLeft(ySc).ticks(5).tickFormat((v: any) => `${Math.round(v / 1000)}k`).tickSize(-cW))
+    .call(a => {
+      a.select('.domain').remove();
+      a.selectAll('line').attr('stroke', '#1a1d2a');
+      a.selectAll('text').attr('fill', '#444').attr('font-size', '10px');
+    });
 
   const areaGen = area<any>()
     .x((d: any) => xSc(d.data.date))
@@ -95,7 +98,7 @@ function build() {
     g.append('path')
       .datum(layer)
       .attr('fill', COLORS[layer.key as string])
-      .attr('opacity', 0.82)
+      .attr('opacity', 0.85)
       .attr('d', areaGen as any);
   });
 
@@ -113,7 +116,7 @@ function build() {
     .attr('font-size', '9px')
     .text('COVID-19');
 
-  // X axis — year ticks only
+  // X axis
   g.append('g')
     .attr('transform', `translate(0,${cH})`)
     .call(
@@ -125,6 +128,60 @@ function build() {
     .call(a => {
       a.select('.domain').remove();
       a.selectAll('text').attr('fill', '#444').attr('font-size', '10px').attr('dy', '1.2em');
+    });
+
+  // Hover crosshair
+  const crosshair = g.append('line')
+    .attr('y1', 0).attr('y2', cH)
+    .attr('stroke', 'rgba(255,255,255,0.3)')
+    .attr('stroke-width', 1)
+    .style('opacity', '0')
+    .attr('pointer-events', 'none');
+
+  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const ttEl = document.getElementById('fvs-tt')!;
+
+  select(svgEl).append('rect')
+    .attr('transform', `translate(${pad.l},${pad.t})`)
+    .attr('width', cW).attr('height', cH)
+    .attr('fill', 'transparent')
+    .style('cursor', 'crosshair')
+    .on('mousemove', (event: MouseEvent) => {
+      const svgRect = svgEl.getBoundingClientRect();
+      const mx = event.clientX - svgRect.left - pad.l;
+      const hovered = xSc.invert(mx);
+      let nearest = dataset[0];
+      let minDist = Infinity;
+      for (const d of dataset) {
+        const dist = Math.abs(d.date.getTime() - hovered.getTime());
+        if (dist < minDist) { minDist = dist; nearest = d; }
+      }
+      crosshair
+        .attr('x1', xSc(nearest.date)).attr('x2', xSc(nearest.date))
+        .style('opacity', '1');
+
+      const total = nearest.IAD + nearest.DCA + nearest.BWI;
+      const mo = nearest.date.getMonth();
+      const yr = nearest.date.getFullYear();
+      ttEl.innerHTML =
+        `<div class="fvs-tt-title">${MN[mo]} ${yr}</div>` +
+        `<div class="fvs-tt-row"><span class="fvs-tt-dot" style="background:#4e9af1"></span><span>IAD</span><span>${nearest.IAD.toLocaleString()}</span></div>` +
+        `<div class="fvs-tt-row"><span class="fvs-tt-dot" style="background:#f97316"></span><span>DCA</span><span>${nearest.DCA.toLocaleString()}</span></div>` +
+        `<div class="fvs-tt-row"><span class="fvs-tt-dot" style="background:#22c55e"></span><span>BWI</span><span>${nearest.BWI.toLocaleString()}</span></div>` +
+        `<div class="fvs-tt-total">${total.toLocaleString()} total</div>`;
+
+      const TT_W = 168;
+      let tx = event.clientX + 16;
+      let ty = event.clientY - 12;
+      if (tx + TT_W > window.innerWidth - 8) tx = event.clientX - TT_W - 8;
+      if (ty < 8) ty = 8;
+      ttEl.style.left  = tx + 'px';
+      ttEl.style.top   = ty + 'px';
+      ttEl.style.opacity = '1';
+    })
+    .on('mouseleave', () => {
+      crosshair.style('opacity', '0');
+      ttEl.style.opacity = '0';
     });
 }
 
@@ -165,5 +222,52 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); build(); }
     border-radius: 50%;
     margin-right: 0.25rem;
     vertical-align: middle;
+  }
+  .fvs-tt {
+    position: fixed;
+    background: #141620;
+    border: 1px solid #2a2d3a;
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem 0.55rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.08s;
+    z-index: 200;
+    min-width: 150px;
+    font-size: 0.75rem;
+  }
+  .fvs-tt-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.35rem;
+  }
+  .fvs-tt-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.1rem 0;
+    color: #ccc;
+  }
+  .fvs-tt-row span:last-child {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    color: #e8e8e8;
+  }
+  .fvs-tt-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .fvs-tt-total {
+    margin-top: 0.3rem;
+    padding-top: 0.28rem;
+    border-top: 1px solid #2a2d3a;
+    font-size: 0.7rem;
+    color: #555;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
   }
 </style>

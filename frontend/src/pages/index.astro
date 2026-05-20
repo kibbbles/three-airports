@@ -80,7 +80,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     <div class="prose">
       <h2>Volume over time</h2>
       <p>
-        Flight counts at all three airports from 2015 through early 2026. The COVID collapse in spring 2020 is the most dramatic single event in the data — all three airports dropped simultaneously, then recovered at different rates. DCA snapped back faster; IAD took longer to rebuild its schedule.
+        Flight counts at all three airports from 2015 through early 2026. The COVID collapse in spring 2020 hit all three simultaneously. DCA dropped the hardest relative to its own baseline, falling to under 15% of its 2019 volume. IAD was the first to fully recover, getting back to pre-COVID levels by late 2021. BWI took the longest, not reaching its 2019 volume until mid-2022. Hover to see monthly counts per airport.
       </p>
     </div>
     <div class="section-chart full-bleed">
@@ -140,7 +140,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
         Each panel compares the morning late rate (6–10am) to the evening late rate (6–10pm) for one season. The steeper the slope, the worse evenings get relative to mornings. Summer stands out — all three airports have their steepest slopes, with late rates nearly doubling from morning to evening. Fall is the flattest, the best time of year to book an evening flight.
       </p>
     </div>
-    <div class="section-chart prose">
+    <div class="section-chart full-bleed">
       <SlopeChart />
     </div>
   </section>
