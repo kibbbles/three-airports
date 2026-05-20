@@ -23,28 +23,44 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
 <Layout>
   <GlobeHero />
 
+  <!-- ── Table of contents ──────────────────────────────────────── -->
+  <nav class="toc prose">
+    <p class="toc-label">Jump to</p>
+    <ol class="toc-list">
+      <li><a href="#intro">The question</a></li>
+      <li><a href="#volume">Volume over time</a></li>
+      <li><a href="#explore">Explore the data</a></li>
+      <li><a href="#fares">Fare comparison</a></li>
+      <li><a href="#delays">When delays happen</a></li>
+      <li><a href="#anomalous">Misbehaving routes</a></li>
+      <li><a href="#forecast">Forecasts</a></li>
+      <li><a href="#limitations">Limitations</a></li>
+    </ol>
+  </nav>
+
   <!-- ── Section 1: Introduction ─────────────────────────────────── -->
-  <section>
+  <section id="intro">
     <div class="prose">
       <h2>IAD, DCA, BWI — what ten years of data shows</h2>
       <p>
         Growing up in the DMV means you've always got three airports to pick from. IAD out
-        in Chantilly, DCA right by the Potomac, BWI up in Baltimore.
+        in Chantilly, DCA right by the Potomac, BWI up in Baltimore. I live closest to IAD
+        so it's usually my default — my flights to Taiwan go through there, though it still
+        requires a layover so there's no real advantage over the other two.
       </p>
       <p>
-        I live closest to IAD so it's usually my default. My flights to Taiwan go through
-        there, though it still requires a layover so there's no real advantage over the other
-        two. One summer I found Tokyo cheaper out of BWI than anything IAD was offering, which
-        caught me off guard since I'd always assumed IAD had the best international fares. Most
-        recently I flew out of IAD for Tampa for a cruise. Honestly, price is what drives my
-        decision every time.
+        One summer I found Tokyo cheaper out of BWI than anything IAD was offering, which
+        caught me off guard. I'd always assumed IAD had the best international connections
+        and therefore the best fares. Then I flew out of IAD for Tampa for a cruise and
+        honestly just picked it because it was the closest. Price is what drives my decision
+        every time, but I've never actually sat down and checked whether IAD earns its
+        convenience premium.
       </p>
       <p>
-        Now I want to know whether IAD actually offers better fares, or whether the drive to DCA
-        or BWI is worth it. So I pulled <strong>3.2 million flights</strong> from the Bureau of
-        Transportation Statistics: 2,823,044 domestic and 335,719 international departures,
-        along with T-100 capacity and DB1B fare surveys from the same source, joined with NOAA
-        weather records.
+        So I pulled <strong>3.2 million flights</strong> from the Bureau of Transportation
+        Statistics — 2,823,044 domestic and 335,719 international departures — along with
+        T-100 capacity data, DB1B fare surveys, and NOAA weather records, all joined
+        together. Let's see what's actually going on.
       </p>
     </div>
 
@@ -76,11 +92,16 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   </section>
 
   <!-- ── Section 1b: Flight volume streamgraph ─────────────────── -->
-  <section>
+  <section id="volume">
     <div class="prose">
       <h2>Volume over time</h2>
       <p>
-        Flight counts at all three airports from 2015 through early 2026. The COVID collapse in spring 2020 hit all three simultaneously. DCA dropped the hardest relative to its own baseline, falling to under 15% of its 2019 volume. IAD was the first to fully recover, getting back to pre-COVID levels by late 2021. BWI took the longest, not reaching its 2019 volume until mid-2022. Hover to see monthly counts per airport.
+        Before anything else, I wanted to see how these airports have actually been doing
+        over time. The COVID collapse in spring 2020 hit all three simultaneously, but
+        the recovery was surprisingly uneven. DCA dropped the hardest relative to its own
+        baseline — it was a ghost town for a while. IAD was the first to fully bounce back,
+        getting to pre-COVID levels by late 2021. BWI took the longest, not really back to
+        its 2019 volume until mid-2022. Hover over the chart to see the monthly breakdown.
       </p>
     </div>
     <div class="section-chart full-bleed">
@@ -89,21 +110,20 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   </section>
 
   <!-- ── Section 2: Crossfilter ───────────────────────────────── -->
-  <section>
+  <section id="explore">
     <div class="prose">
       <h2>Explore 2.7 million domestic flights</h2>
       <p>
-        Filter by airport using the buttons above, then drag across any chart to select
-        a range — date, hour of day, arrival delay, or flight distance. Every chart
-        updates based on what you've selected in all the others, so dragging to morning
-        flights in summer immediately shows how that changes the delay and distance
-        distributions.
+        Here's the raw data, all 2.7 million domestic departures. You can filter by airport,
+        drag across any of the charts to select a range — time of day, month, delay, distance —
+        and everything else updates to match. It's a good way to poke around and see if anything
+        jumps out at you.
       </p>
       <p>
-        The count starts at 2.7 million, not 3.2 million, for two reasons: 335,719
-        international flights are excluded because BTS on-time data only covers domestic
-        routes, and 75,040 cancelled flights are excluded because they have no arrival
-        delay. That leaves 2,748,004 domestic flights that actually departed and landed.
+        The count is 2.7 million rather than 3.2 million because the 335,719 international
+        flights are excluded (BTS on-time data is domestic only), and the 75,040 cancelled
+        flights are excluded since they have no arrival delay. What's left is every domestic
+        flight that actually took off and landed.
       </p>
     </div>
     <div class="section-chart full-bleed">
@@ -112,19 +132,19 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   </section>
 
   <!-- ── Section 3: Fare comparison ──────────────────────────────── -->
-  <section>
+  <section id="fares">
     <div class="prose">
       <h2>Does it actually cost more to fly out of IAD?</h2>
       <p>
-        All three airports serve the same 52 domestic destinations with enough flights
-        to get a reliable average fare. The trend line shows how fares moved year over
-        year, and the dot plot lines up all three airports side by side on each route.
-        Further left means cheaper.
+        This is the question I actually wanted to answer. There are 52 domestic destinations
+        that all three airports fly to with enough volume to get a reliable average fare. The
+        trend chart shows how overall fares moved year by year. The dot plot puts all three
+        airports side by side for each route — further left means cheaper.
       </p>
       <p>
-        IAD is the most expensive airport every year, and it's not close. BWI is the
-        cheapest option on 44 of those 52 routes, and IAD is the priciest on 22. If
-        you're driving past DCA or BWI to get to IAD, you're probably paying more for it.
+        Short answer: yes, IAD is more expensive, and it's not subtle. BWI is the cheapest
+        option on 44 of those 52 routes, and IAD is the priciest on 22. If you're driving
+        past DCA or BWI to get to Dulles, you're probably paying for that choice.
       </p>
     </div>
     <div class="section-chart full-bleed">
@@ -133,11 +153,19 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   </section>
 
   <!-- ── Section 4: Slope chart ─────────────────────────────────── -->
-  <section>
+  <section id="delays">
     <div class="prose">
       <h2>When delays happen</h2>
       <p>
-        Each panel compares the morning late rate (6–10am) to the evening late rate (6–10pm) for one season. The steeper the slope, the worse evenings get relative to mornings. Summer stands out — all three airports have their steepest slopes, with late rates nearly doubling from morning to evening. Fall is the flattest, the best time of year to book an evening flight.
+        Morning flights are almost always more reliable than evening flights — delays
+        accumulate throughout the day. But how much worse does it actually get, and does
+        that gap change by season? Each panel here compares the morning late rate (6–10am)
+        against the evening late rate (6–10pm). Hover over a panel to see the exact numbers.
+      </p>
+      <p>
+        Summer is the worst by a wide margin — all three airports nearly double their late
+        rate from morning to evening. Fall is the most forgiving season if you have to book
+        an evening flight and can't afford to gamble.
       </p>
     </div>
     <div class="section-chart full-bleed">
@@ -146,7 +174,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   </section>
 
   <!-- ── Section 4: Anomalous routes ───────────────────────────── -->
-  <section>
+  <section id="anomalous">
     <div class="prose">
       <h2>Routes that keep misbehaving</h2>
       <p>
@@ -166,7 +194,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   </section>
 
   <!-- ── Section 5: Forecasts ──────────────────────────────────── -->
-  <section>
+  <section id="forecast">
     <div class="prose">
       <h2>What the models say</h2>
       <p>
@@ -186,7 +214,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   </section>
 
   <!-- ── Section 6: Limitations ────────────────────────────────── -->
-  <section>
+  <section id="limitations">
     <div class="prose">
       <h2>Limitations</h2>
       <ul>
@@ -200,6 +228,43 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
 </Layout>
 
 <style>
+  /* Table of contents */
+  .toc {
+    margin-top: 2rem;
+    margin-bottom: 0;
+  }
+  .toc-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+  }
+  .toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+  }
+  .toc-list li {
+    margin: 0;
+  }
+  .toc-list a {
+    font-size: 0.82rem;
+    color: #555;
+    text-decoration: none;
+    border-bottom: 1px solid #2a2d3a;
+    padding-bottom: 1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .toc-list a:hover {
+    color: #aaa;
+    border-color: #555;
+  }
+
   /* Stat cards */
   .cards {
     display: grid;

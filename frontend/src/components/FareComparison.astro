@@ -280,7 +280,7 @@ function buildPremium() {
   const wrap  = svgEl.closest('figure') as HTMLElement;
   const W     = Math.max(wrap.getBoundingClientRect().width - 24, 260);
   const ROW_H = 22;
-  const pad   = { t: 20, r: 90, b: 8, l: 185 };
+  const pad   = { t: 20, r: 64, b: 8, l: 185 };
   const cW    = W - pad.l - pad.r;
 
   // Compute IAD premium per route and sort
@@ -396,6 +396,7 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); buildTrend(); bu
 
   .fare-panel-premium {
     margin-top: 1rem;
+    overflow-x: auto;
   }
   .fare-premium-svg { display: block; width: 100%; }
 

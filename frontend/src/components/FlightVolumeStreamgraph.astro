@@ -163,12 +163,14 @@ function build() {
       const total = nearest.IAD + nearest.DCA + nearest.BWI;
       const mo = nearest.date.getMonth();
       const yr = nearest.date.getFullYear();
+      const row = (color: string, ap: string, val: number) =>
+        `<div class="fvs-tt-row"><span class="fvs-tt-dot" style="background:${color}"></span><span class="fvs-tt-ap">${ap}</span><span class="fvs-tt-val">${val.toLocaleString()} flights</span></div>`;
       ttEl.innerHTML =
         `<div class="fvs-tt-title">${MN[mo]} ${yr}</div>` +
-        `<div class="fvs-tt-row"><span class="fvs-tt-dot" style="background:#4e9af1"></span><span>IAD</span><span>${nearest.IAD.toLocaleString()}</span></div>` +
-        `<div class="fvs-tt-row"><span class="fvs-tt-dot" style="background:#f97316"></span><span>DCA</span><span>${nearest.DCA.toLocaleString()}</span></div>` +
-        `<div class="fvs-tt-row"><span class="fvs-tt-dot" style="background:#22c55e"></span><span>BWI</span><span>${nearest.BWI.toLocaleString()}</span></div>` +
-        `<div class="fvs-tt-total">${total.toLocaleString()} total</div>`;
+        row('#4e9af1', 'IAD', nearest.IAD) +
+        row('#f97316', 'DCA', nearest.DCA) +
+        row('#22c55e', 'BWI', nearest.BWI) +
+        `<div class="fvs-tt-footer">Total ${total.toLocaleString()}</div>`;
 
       const TT_W = 168;
       let tx = event.clientX + 16;
@@ -228,13 +230,12 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); build(); }
     background: #141620;
     border: 1px solid #2a2d3a;
     border-radius: 8px;
-    padding: 0.5rem 0.7rem 0.55rem;
+    padding: 0.55rem 0.75rem 0.6rem;
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.08s;
     z-index: 200;
-    min-width: 150px;
-    font-size: 0.75rem;
+    min-width: 160px;
   }
   .fvs-tt-title {
     font-size: 0.72rem;
@@ -242,32 +243,36 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); build(); }
     color: #888;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.4rem;
   }
   .fvs-tt-row {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.1rem 0;
-    color: #ccc;
-  }
-  .fvs-tt-row span:last-child {
-    margin-left: auto;
-    font-variant-numeric: tabular-nums;
-    color: #e8e8e8;
+    gap: 0.45rem;
+    padding: 0.12rem 0;
   }
   .fvs-tt-dot {
     width: 8px; height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .fvs-tt-total {
-    margin-top: 0.3rem;
-    padding-top: 0.28rem;
-    border-top: 1px solid #2a2d3a;
-    font-size: 0.7rem;
-    color: #555;
-    text-align: right;
+  .fvs-tt-ap {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #ccc;
+    width: 2.4em;
+  }
+  .fvs-tt-val {
+    font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
+    color: #e8e8e8;
+    margin-left: auto;
+  }
+  .fvs-tt-footer {
+    font-size: 0.68rem;
+    color: #555;
+    margin-top: 0.35rem;
+    padding-top: 0.3rem;
+    border-top: 1px solid #2a2d3a;
   }
 </style>
