@@ -5,204 +5,115 @@ type HeatData = { hours: number[]; months: number[]; values: (number | null)[][]
 const data = heatmaps as Record<string, HeatData>;
 
 const AIRPORTS = ['IAD', 'DCA', 'BWI'] as const;
-const COLORS: Record<string, string> = { IAD: '#4e9af1', DCA: '#f97316', BWI: '#22c55e' };
+const AP_COLORS: Record<string, string> = { IAD: '#4e9af1', DCA: '#f97316', BWI: '#22c55e' };
 
-const MORNING_HOURS = [6, 7, 8, 9];
-const EVENING_HOURS = [18, 19, 20, 21];
-
-// monthIndex: 0=Jan … 11=Dec
-const SEASONS: { name: string; months: number[] }[] = [
-  { name: 'Winter', months: [11, 0, 1] },
-  { name: 'Spring', months: [2, 3, 4] },
-  { name: 'Summer', months: [5, 6, 7] },
-  { name: 'Fall',   months: [8, 9, 10] },
+const SEASONS = [
+  { label: 'Winter', mIdxs: [11, 0, 1] },
+  { label: 'Spring', mIdxs: [2, 3, 4] },
+  { label: 'Summer', mIdxs: [5, 6, 7] },
+  { label: 'Fall',   mIdxs: [8, 9, 10] },
 ];
+const MORNING = [6, 7, 8, 9];
+const EVENING = [18, 19, 20, 21];
 
-function avg(values: (number | null)[][], hours: number[], months: number[]): number {
-  let sum = 0; let count = 0;
+function avg(ap: string, hours: number[], mIdxs: number[]): number {
+  const vals = data[ap].values;
+  let sum = 0, n = 0;
   for (const h of hours) {
-    for (const mi of months) {
-      const v = values[h]?.[mi];
-      if (v != null) { sum += v; count++; }
+    for (const mi of mIdxs) {
+      const v = vals[h]?.[mi];
+      if (v != null) { sum += v; n++; }
     }
   }
-  return count > 0 ? sum / count : 0;
+  return n > 0 ? sum / n : 0;
 }
 
-// Compute all values to find global y-scale
-type SeasonData = {
-  season: string;
-  airports: { code: string; morning: number; evening: number }[];
-};
-
-const seasonData: SeasonData[] = SEASONS.map(({ name, months }) => ({
-  season: name,
-  airports: AIRPORTS.map(code => ({
-    code,
-    morning: avg(data[code].values, MORNING_HOURS, months),
-    evening: avg(data[code].values, EVENING_HOURS, months),
+const seasons = SEASONS.map(s => ({
+  label: s.label,
+  aps: (AIRPORTS as readonly string[]).map(ap => ({
+    ap,
+    color: AP_COLORS[ap],
+    morning: avg(ap, MORNING, s.mIdxs),
+    evening: avg(ap, EVENING, s.mIdxs),
   })),
 }));
 
-const allVals = seasonData.flatMap(s => s.airports.flatMap(a => [a.morning, a.evening]));
-const globalMin = Math.min(...allVals);
-const globalMax = Math.max(...allVals);
+const allVals = seasons.flatMap(s => s.aps.flatMap(a => [a.morning, a.evening]));
+const rawMin  = Math.min(...allVals);
+const rawMax  = Math.max(...allVals);
+const Y_MIN   = Math.floor((rawMin - 0.015) * 20) / 20;
+const Y_MAX   = Math.ceil((rawMax  + 0.015) * 20) / 20;
 
-// SVG layout constants
-const SVG_W  = 200;
-const SVG_H  = 215;
-const TOP    = 28;   // title + padding
-const BOTTOM = 185;  // y position of axis line (above x labels)
-const CHART_H = BOTTOM - TOP;
-const X_MORNING = 32;
-const X_EVENING = 132;
-const GRID_20_RATE = 0.20;
+const SVG_W = 200;
+const SVG_H = 215;
+const X_M   = 38;
+const X_E   = 132;
+const Y_TOP = 30;
+const Y_BOT = 180;
 
 function toY(v: number): number {
-  // Map globalMin→BOTTOM, globalMax→TOP
-  return TOP + (1 - (v - globalMin) / (globalMax - globalMin)) * CHART_H;
+  return Y_BOT - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * (Y_BOT - Y_TOP);
 }
+function pct(v: number): string { return Math.round(v * 100) + '%'; }
 
-const GRID_Y = toY(GRID_20_RATE);
-const SHOW_GRID = GRID_20_RATE >= globalMin && GRID_20_RATE <= globalMax;
+type LabelItem = { ap: string; color: string; evening: number; dotY: number; labelY: number };
 
-function pct(v: number): string {
-  return Math.round(v * 100) + '%';
-}
-
-// Push labels apart (min 12px gap) — operate on evening-side labels
-function pushApart(labels: { y: number; text: string; color: string }[], minGap = 12) {
-  // Sort by y ascending, then iteratively push apart
-  const sorted = [...labels].sort((a, b) => a.y - b.y);
-  let changed = true;
-  let iters = 0;
-  while (changed && iters < 100) {
-    changed = false; iters++;
-    for (let i = 1; i < sorted.length; i++) {
-      const diff = sorted[i].y - sorted[i - 1].y;
-      if (diff < minGap) {
-        const push = (minGap - diff) / 2;
-        sorted[i - 1].y -= push;
-        sorted[i].y     += push;
-        changed = true;
-      }
+function pushApart(items: Omit<LabelItem, 'labelY'>[]): LabelItem[] {
+  const sorted = [...items].sort((a, b) => a.dotY - b.dotY);
+  const out: LabelItem[] = sorted.map(d => ({ ...d, labelY: d.dotY }));
+  for (let i = 1; i < out.length; i++) {
+    if (out[i].labelY - out[i - 1].labelY < 13) {
+      out[i].labelY = out[i - 1].labelY + 13;
     }
   }
-  return sorted;
+  return out;
 }
+
+const REF_Y   = toY(0.20);
+const showRef = REF_Y > Y_TOP + 2 && REF_Y < Y_BOT - 2;
 ---
 
-<div class="slope-grid">
-  {seasonData.map(({ season, airports }) => {
-    // Build label set for evening side
-    const rawLabels = airports.map(a => ({
-      y: toY(a.evening) + 4,
-      text: `${a.code} ${pct(a.evening)}`,
-      color: COLORS[a.code],
-    }));
-    const adjustedLabels = pushApart(rawLabels, 12);
-    // Map back by code for lookup
-    const labelMap: Record<string, number> = {};
-    // rawLabels and adjustedLabels have same elements after sort, match by text
-    for (let i = 0; i < rawLabels.length; i++) {
-      const raw = rawLabels[i];
-      const adj = adjustedLabels.find(l => l.text === raw.text);
-      labelMap[raw.text] = adj ? adj.y : raw.y;
-    }
-
+<div class="slope-wrap">
+  {seasons.map(s => {
+    const labels = pushApart(s.aps.map(a => ({
+      ap: a.ap, color: a.color, evening: a.evening, dotY: toY(a.evening),
+    })));
     return (
       <div class="slope-panel">
         <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} class="slope-svg">
-          {/* Season title */}
-          <text
-            x={SVG_W / 2} y={16}
-            text-anchor="middle"
-            fill="#aaa"
-            font-size="11"
-            font-weight="600"
-          >{season}</text>
 
-          {/* Grid line at 20% */}
-          {SHOW_GRID && (
+          <text x={SVG_W / 2} y="18" text-anchor="middle" fill="#aaa" font-size="12" font-weight="600">{s.label}</text>
+
+          {showRef && <line x1={X_M - 6} x2={X_E + 6} y1={REF_Y} y2={REF_Y} stroke="#222530" stroke-width="1" />}
+          {showRef && <text x={X_M - 8} y={REF_Y + 3.5} text-anchor="end" fill="#333" font-size="8">20%</text>}
+
+          <line x1={X_M} x2={X_M} y1={Y_TOP - 2} y2={Y_BOT + 2} stroke="#1e2130" stroke-width="1" />
+          <line x1={X_E} x2={X_E} y1={Y_TOP - 2} y2={Y_BOT + 2} stroke="#1e2130" stroke-width="1" />
+
+          {s.aps.map(a => (
+            <line x1={X_M} y1={toY(a.morning)} x2={X_E} y2={toY(a.evening)} stroke={a.color} stroke-width="2" opacity="0.9" />
+          ))}
+
+          {s.aps.map(a => (
+            <circle cx={X_M} cy={toY(a.morning)} r="4" fill={a.color} stroke="#0e1017" stroke-width="1.5" />
+          ))}
+          {s.aps.map(a => (
+            <circle cx={X_E} cy={toY(a.evening)} r="4" fill={a.color} stroke="#0e1017" stroke-width="1.5" />
+          ))}
+
+          {labels.map(item => (
             <>
-              <line
-                x1={X_MORNING - 8} x2={X_EVENING + 8}
-                y1={GRID_Y} y2={GRID_Y}
-                stroke="#2a2d3a"
-                stroke-width="1"
-              />
-              <text
-                x={X_MORNING - 10} y={GRID_Y + 3.5}
-                text-anchor="end"
-                fill="#444"
-                font-size="7.5"
-              >20%</text>
+              {item.labelY !== item.dotY && (
+                <line x1={X_E + 6} y1={item.dotY} x2={X_E + 6} y2={item.labelY} stroke={item.color} stroke-width="0.75" opacity="0.35" />
+              )}
+              <text x={X_E + 10} y={item.labelY + 3.5} fill={item.color} font-size="10">{item.ap} {pct(item.evening)}</text>
             </>
-          )}
+          ))}
 
-          {/* Lines and dots for each airport */}
-          {airports.map(a => {
-            const x1 = X_MORNING;
-            const y1 = toY(a.morning);
-            const x2 = X_EVENING;
-            const y2 = toY(a.evening);
-            return (
-              <>
-                <line
-                  x1={x1} y1={y1} x2={x2} y2={y2}
-                  stroke={COLORS[a.code]}
-                  stroke-width="2"
-                />
-                <circle cx={x1} cy={y1} r="4" fill={COLORS[a.code]} stroke="#0e1017" stroke-width="1.5" />
-                <circle cx={x2} cy={y2} r="4" fill={COLORS[a.code]} stroke="#0e1017" stroke-width="1.5" />
-              </>
-            );
-          })}
-
-          {/* Right-side labels (adjusted) */}
-          {airports.map(a => {
-            const labelText = `${a.code} ${pct(a.evening)}`;
-            const labelY = labelMap[labelText] ?? (toY(a.evening) + 4);
-            return (
-              <text
-                x={X_EVENING + 8}
-                y={labelY}
-                fill={COLORS[a.code]}
-                font-size="9"
-                font-weight="600"
-              >{labelText}</text>
-            );
-          })}
-
-          {/* X axis line */}
-          <line
-            x1={X_MORNING - 8} x2={X_EVENING + 8}
-            y1={BOTTOM} y2={BOTTOM}
-            stroke="#2a2d3a"
-            stroke-width="1"
-          />
-
-          {/* X axis labels — two tspan lines each */}
-          <text
-            x={X_MORNING}
-            y={BOTTOM + 13}
-            text-anchor="middle"
-            fill="#555"
-            font-size="8.5"
-          >
-            <tspan x={X_MORNING} dy="0">Morning</tspan>
-            <tspan x={X_MORNING} dy="11">6–10am</tspan>
-          </text>
-          <text
-            x={X_EVENING}
-            y={BOTTOM + 13}
-            text-anchor="middle"
-            fill="#555"
-            font-size="8.5"
-          >
-            <tspan x={X_EVENING} dy="0">Evening</tspan>
-            <tspan x={X_EVENING} dy="11">6–10pm</tspan>
-          </text>
+          <text x={X_M} y={SVG_H - 13} text-anchor="middle" fill="#555" font-size="9">Morning</text>
+          <text x={X_M} y={SVG_H - 3}  text-anchor="middle" fill="#444" font-size="8">6&#x2013;10am</text>
+          <text x={X_E} y={SVG_H - 13} text-anchor="middle" fill="#555" font-size="9">Evening</text>
+          <text x={X_E} y={SVG_H - 3}  text-anchor="middle" fill="#444" font-size="8">6&#x2013;10pm</text>
         </svg>
       </div>
     );
@@ -210,25 +121,19 @@ function pushApart(labels: { y: number; text: string; color: string }[], minGap 
 </div>
 
 <style>
-  .slope-grid {
+  .slope-wrap {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-top: 1.5rem;
+    gap: 0.75rem;
   }
   @media (min-width: 900px) {
-    .slope-grid {
-      grid-template-columns: repeat(4, 1fr);
-    }
+    .slope-wrap { grid-template-columns: repeat(4, 1fr); }
   }
   .slope-panel {
     background: var(--surface);
     border: 1px solid #2a2d3a;
     border-radius: 10px;
-    padding: 0.65rem;
+    padding: 0.6rem 0.5rem 0.4rem;
   }
-  .slope-svg {
-    display: block;
-    width: 100%;
-  }
+  .slope-svg { display: block; width: 100%; height: auto; }
 </style>
