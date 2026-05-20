@@ -413,7 +413,10 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); buildTrend(); bu
     z-index: 200;
     min-width: 130px;
   }
-  .fare-tt-title {
+</style>
+
+<style is:global>
+  #fare-tt .fare-tt-title {
     font-size: 0.72rem;
     font-weight: 600;
     color: #888;
@@ -421,31 +424,31 @@ if (mount.getBoundingClientRect().width > 0) { ro.disconnect(); buildTrend(); bu
     letter-spacing: 0.06em;
     margin-bottom: 0.4rem;
   }
-  .fare-tt-row {
+  #fare-tt .fare-tt-row {
     display: flex;
     align-items: center;
     gap: 0.45rem;
     padding: 0.12rem 0;
   }
-  .fare-tt-dot {
+  #fare-tt .fare-tt-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .fare-tt-ap {
+  #fare-tt .fare-tt-ap {
     font-size: 0.75rem;
     font-weight: 600;
     color: #ccc;
     width: 2.4em;
   }
-  .fare-tt-val {
+  #fare-tt .fare-tt-val {
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
     color: #e8e8e8;
     margin-left: auto;
   }
-  .fare-tt-footer {
+  #fare-tt .fare-tt-footer {
     font-size: 0.68rem;
     color: #555;
     margin-top: 0.35rem;

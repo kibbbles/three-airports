@@ -27,7 +27,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
   <nav class="toc prose">
     <p class="toc-label">Jump to</p>
     <ol class="toc-list">
-      <li><a href="#intro">The question</a></li>
+      <li><a href="#intro">Overview</a></li>
       <li><a href="#volume">Volume over time</a></li>
       <li><a href="#explore">Explore the data</a></li>
       <li><a href="#fares">Fare comparison</a></li>
@@ -225,13 +225,30 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
       </ul>
     </div>
   </section>
+<script>
+  const TOOLTIP_IDS = ['fare-tt', 'fvs-tt', 'slope-tt'];
+
+  function hideAll() {
+    for (const id of TOOLTIP_IDS) {
+      const el = document.getElementById(id);
+      if (el) el.style.opacity = '0';
+    }
+  }
+
+  window.addEventListener('scroll', hideAll, { passive: true });
+
+  document.addEventListener('pointerdown', (e) => {
+    const t = e.target as Element;
+    if (!t.closest('svg') && !t.closest('.slope-panel')) hideAll();
+  });
+</script>
 </Layout>
 
 <style>
   /* Table of contents */
   .toc {
-    margin-top: 2rem;
-    margin-bottom: 0;
+    margin-top: 4rem;
+    margin-bottom: 2.5rem;
   }
   .toc-label {
     font-size: 0.72rem;
