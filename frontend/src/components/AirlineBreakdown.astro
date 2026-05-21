@@ -14,6 +14,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <div class="ab-panel" id="ab-fare-DCA"></div>
     <div class="ab-panel" id="ab-fare-BWI"></div>
   </div>
+  <div class="ab-lollipop-wrap">
+    <p class="ab-divider-label" style="margin-top:2.5rem">Same airline, same destination — does the airport change the price?</p>
+    <div id="ab-lollipop"></div>
+    <p class="ab-footnote">Each dot = one destination. Filled circle = median. Routes with ≥500 tickets at both IAD and BWI, all itinerary types, 2015–2025.</p>
+  </div>
   <div id="ab-tt"></div>
 </div>
 
@@ -23,11 +28,17 @@ import * as d3 from 'd3';
 const root = document.getElementById('ab-root') as HTMLElement;
 const base = root.dataset.base ?? '';
 
-type ShareRow = { carrier: string; name: string; pax: number; pct: number; color: string };
-type FareRow  = { carrier: string; name: string; median_fare: number; color: string };
-type ABData   = { share: Record<string, ShareRow[]>; fares: Record<string, FareRow[]> };
+type ShareRow      = { carrier: string; name: string; pax: number; pct: number; color: string };
+type FareRow       = { carrier: string; name: string; median_fare: number; color: string };
+type ABData        = { share: Record<string, ShareRow[]>; fares: Record<string, FareRow[]> };
+type CarrierSumRow = { carrier: string; name: string; color: string; n: number; median_prem: number; pct_iad_cheaper: number };
+type RoutePoint    = { carrier: string; dest: string; iad: number; bwi: number; prem: number };
+type HPData        = { carriers: CarrierSumRow[]; routes: RoutePoint[] };
 
-const data: ABData = await fetch(`${base}/data/carrier_breakdown.json`).then(r => r.json());
+const [data, hp]: [ABData, HPData] = await Promise.all([
+  fetch(`${base}/data/carrier_breakdown.json`).then(r => r.json()),
+  fetch(`${base}/data/hub_premium.json`).then(r => r.json()),
+]);
 
 const AIRPORTS = ['IAD', 'DCA', 'BWI'] as const;
 const AP_COLOR: Record<string, string> = { IAD: '#4e9af1', DCA: '#f97316', BWI: '#22c55e' };
@@ -202,8 +213,158 @@ function drawFares(ap: string) {
     });
 }
 
+// ── Lollipop: within-carrier IAD vs BWI premium ──────────────────
+function hashJitter(s: string, amp: number): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff;
+  return ((h / 0xffff) * 2 - 1) * amp;
+}
+
+function drawLollipop() {
+  const el = document.getElementById('ab-lollipop') as HTMLElement;
+  el.innerHTML = '';
+  const W = el.clientWidth;
+  if (W < 60) return;
+
+  const narrow   = W < 500;
+  const carriers = hp.carriers;
+  const routes   = hp.routes;
+
+  const pad    = { t: 12, r: narrow ? 80 : 148, b: 32, l: narrow ? 74 : 92 };
+  const rowH   = narrow ? 42 : 50;
+  const innerW = W - pad.l - pad.r;
+  const innerH = carriers.length * rowH;
+  const H      = innerH + pad.t + pad.b;
+
+  // x domain: 2nd–98th percentile of all route premiums, rounded to nearest $10
+  const sorted = [...routes.map((r: RoutePoint) => r.prem)].sort((a, b) => a - b);
+  const lo = Math.min(Math.floor((d3.quantile(sorted, 0.02) ?? -60) / 10) * 10 - 5, -30);
+  const hi = Math.max(Math.ceil((d3.quantile(sorted, 0.98) ?? 80) / 10) * 10 + 5, 30);
+  const xSc = d3.scaleLinear().domain([lo, hi]).range([0, innerW]).clamp(true);
+
+  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${pad.l},${pad.t})`);
+
+  // Zero reference line
+  const x0 = xSc(0);
+  g.append('line')
+    .attr('x1', x0).attr('x2', x0)
+    .attr('y1', 0).attr('y2', innerH)
+    .attr('stroke', '#2a2d3a').attr('stroke-width', 1.5)
+    .attr('stroke-dasharray', '4 3');
+
+  g.append('text')
+    .attr('x', x0).attr('y', innerH + 22)
+    .attr('text-anchor', 'middle').attr('fill', '#444')
+    .attr('font-size', 9).attr('letter-spacing', '.05em')
+    .text('parity');
+
+  // X axis
+  g.append('g').attr('transform', `translate(0,${innerH})`)
+    .call(
+      d3.axisBottom(xSc)
+        .ticks(narrow ? 4 : 6)
+        .tickFormat((d: d3.NumberValue) => `${+d > 0 ? '+' : ''}$${+d}`)
+        .tickSize(4)
+    )
+    .call((ax: any) => {
+      ax.select('.domain').remove();
+      ax.selectAll('.tick line').attr('stroke', '#2a2d3a');
+      ax.selectAll('text').attr('fill', '#555').attr('font-size', '10');
+    });
+
+  // Per-carrier rows
+  carriers.forEach((c: CarrierSumRow, i: number) => {
+    const cy        = i * rowH + rowH / 2;
+    const cx        = xSc(c.median_prem);
+    const rowRoutes = routes.filter((r: RoutePoint) => r.carrier === c.carrier);
+    const sign      = c.median_prem >= 0 ? '+' : '';
+
+    // Carrier name label
+    g.append('text')
+      .attr('x', -8).attr('y', cy)
+      .attr('text-anchor', 'end').attr('dominant-baseline', 'middle')
+      .attr('fill', '#ccc').attr('font-size', narrow ? 11 : 12).attr('font-weight', '600')
+      .text(c.name);
+
+    // Background row stripe (subtle)
+    if (i % 2 === 0) {
+      g.append('rect')
+        .attr('x', 0).attr('y', i * rowH)
+        .attr('width', innerW).attr('height', rowH)
+        .attr('fill', 'rgba(255,255,255,0.015)');
+    }
+
+    // Strip dots (individual routes)
+    rowRoutes.forEach((r: RoutePoint) => {
+      const jy = hashJitter(r.dest, rowH * 0.21);
+      g.append('circle')
+        .attr('cx', xSc(r.prem))
+        .attr('cy', cy + jy)
+        .attr('r', 3.5).attr('fill', c.color).attr('opacity', 0.2)
+        .style('cursor', 'default')
+        .on('mousemove', (ev: MouseEvent) => {
+          const diff = r.prem >= 0 ? `+$${r.prem} more at IAD` : `-$${Math.abs(r.prem)} less at IAD`;
+          tt.innerHTML = `<div class="ab-tt-name">${c.name} → ${r.dest}</div>
+            <div class="ab-tt-row"><span>IAD</span><span>$${r.iad}</span></div>
+            <div class="ab-tt-row"><span>BWI</span><span>$${r.bwi}</span></div>
+            <div class="ab-tt-row ab-tt-diff"><span>${diff}</span></div>`;
+          posTT(ev.clientX, ev.clientY);
+        })
+        .on('mouseleave', () => hideTT());
+    });
+
+    // Stem: 0 → median
+    g.append('line')
+      .attr('x1', x0).attr('x2', cx)
+      .attr('y1', cy).attr('y2', cy)
+      .attr('stroke', c.color).attr('stroke-width', 2.5).attr('opacity', 0.55);
+
+    // Median dot
+    g.append('circle')
+      .attr('cx', cx).attr('cy', cy)
+      .attr('r', 7).attr('fill', c.color)
+      .attr('stroke', '#0f1117').attr('stroke-width', 1.5)
+      .style('cursor', 'default')
+      .on('mousemove', (ev: MouseEvent) => {
+        const cheaper = c.pct_iad_cheaper.toFixed(0);
+        const pricier = (100 - c.pct_iad_cheaper).toFixed(0);
+        tt.innerHTML = `<div class="ab-tt-name">${c.name}</div>
+          <div class="ab-tt-row"><span>Median premium</span><span>${sign}$${Math.abs(c.median_prem).toFixed(0)} at IAD</span></div>
+          <div class="ab-tt-row"><span>IAD cheaper</span><span>${cheaper}% of routes</span></div>
+          <div class="ab-tt-row"><span>IAD pricier</span><span>${pricier}% of routes</span></div>`;
+        posTT(ev.clientX, ev.clientY);
+      })
+      .on('mouseleave', () => hideTT());
+
+    // Right labels
+    g.append('text')
+      .attr('x', innerW + 8).attr('y', cy - (narrow ? 0 : 5))
+      .attr('dominant-baseline', 'middle')
+      .attr('fill', c.median_prem < 0 ? '#6dbf8e' : '#e07a6a')
+      .attr('font-size', narrow ? 10 : 11).attr('font-weight', '600')
+      .text(`${sign}$${Math.abs(c.median_prem).toFixed(0)}${narrow ? '' : ' median'}`);
+
+    if (!narrow) {
+      g.append('text')
+        .attr('x', innerW + 8).attr('y', cy + 10)
+        .attr('dominant-baseline', 'middle').attr('fill', '#555')
+        .attr('font-size', 10)
+        .text(`${c.n} routes`);
+    }
+  });
+
+  // Axis label
+  svg.append('text')
+    .attr('x', pad.l + innerW / 2).attr('y', H - 1)
+    .attr('text-anchor', 'middle').attr('fill', '#444')
+    .attr('font-size', 9.5).attr('letter-spacing', '.04em')
+    .text('IAD fare vs BWI fare, same carrier and destination ($)');
+}
+
 function drawAll() {
   AIRPORTS.forEach(ap => { drawDonut(ap); drawFares(ap); });
+  drawLollipop();
 }
 
 drawAll();
@@ -246,6 +407,13 @@ ro.observe(root);
     color: #aaa;
     font-variant-numeric: tabular-nums;
   }
+  #ab-tt .ab-tt-diff {
+    margin-top: 0.2rem;
+    padding-top: 0.2rem;
+    border-top: 1px solid #2a2d3a;
+    color: #ccc;
+    justify-content: center;
+  }
 </style>
 
 <style>
@@ -276,12 +444,25 @@ ro.observe(root);
     margin: 0 0 1.25rem;
     font-weight: 600;
   }
+  .ab-lollipop-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .ab-footnote {
+    font-size: 0.68rem;
+    color: #444;
+    text-align: center;
+    margin: 0.5rem 0 0;
+  }
   @media (max-width: 640px) {
     #ab-root { padding: 0 1rem; }
     #ab-donut-grid,
     #ab-fare-grid {
       grid-template-columns: 1fr;
       gap: 1.5rem;
+    }
+    .ab-lollipop-wrap {
+      max-width: 100%;
     }
   }
 </style>

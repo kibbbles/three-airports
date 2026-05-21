@@ -164,14 +164,33 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
       <p>
         The fare gap between airports is real, but it's not really about the airports themselves.
         Carrier mix explains most of it. United controls 68% of IAD's traffic. Southwest runs 60% of BWI.
-        Those two carriers don't charge the same fares — but here's the thing: when you look at the same
-        carrier across airports, the fares barely move. Southwest charges $195 median at IAD, $188 at DCA,
-        $198 at BWI. United charges $250 at IAD, $254 at DCA, $267 at BWI. The carriers are consistent.
-        It's the mix that differs, and the mix is what drives the airport-level average.
+        Those two carriers don't charge the same fares. When you look at overall medians, the differences
+        are small: Southwest runs $174–198 across all three airports, United $236–245. But dig into the
+        routes they actually share and a more interesting pattern shows up.
       </p>
     </div>
     <div class="section-chart full-bleed">
       <AirlineBreakdown />
+    </div>
+    <div class="prose">
+      <p>
+        Southwest is actually cheaper from IAD than from BWI on every route they share in common.
+        IAD to Orlando is $108 with Southwest. BWI to Orlando, same carrier, is $182. That holds
+        across all 43 shared routes, with a median gap of $23 cheaper at IAD. BWI is Southwest's
+        hub, where they control 60% of the traffic and face less competition on most routes. At IAD
+        they're a 4% player, so they price accordingly.
+      </p>
+      <p>
+        United is the opposite. On the 73 routes where United flies from both airports, IAD runs
+        about $23 more expensive than BWI, and that direction holds on 74% of routes. IAD is United's
+        hub. Same logic, different airport.
+      </p>
+      <p>
+        The $40 average gap between IAD and BWI is a few things stacked on top of each other.
+        Carrier mix is the bigger part: a 68% United airport is always going to average higher than
+        a 60% Southwest airport. But the hub premium is in there too. Both carriers charge more where
+        they dominate, and they happen to dominate opposite ends of the price spectrum.
+      </p>
     </div>
   </section>
 
