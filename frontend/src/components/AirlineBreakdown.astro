@@ -1,0 +1,287 @@
+---
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<div id="ab-root" data-base={base}>
+  <div id="ab-donut-grid">
+    <div class="ab-panel" id="ab-donut-IAD"></div>
+    <div class="ab-panel" id="ab-donut-DCA"></div>
+    <div class="ab-panel" id="ab-donut-BWI"></div>
+  </div>
+  <p class="ab-divider-label">Median one-way fare by carrier</p>
+  <div id="ab-fare-grid">
+    <div class="ab-panel" id="ab-fare-IAD"></div>
+    <div class="ab-panel" id="ab-fare-DCA"></div>
+    <div class="ab-panel" id="ab-fare-BWI"></div>
+  </div>
+  <div id="ab-tt"></div>
+</div>
+
+<script>
+import * as d3 from 'd3';
+
+const root = document.getElementById('ab-root') as HTMLElement;
+const base = root.dataset.base ?? '';
+
+type ShareRow = { carrier: string; name: string; pax: number; pct: number; color: string };
+type FareRow  = { carrier: string; name: string; median_fare: number; color: string };
+type ABData   = { share: Record<string, ShareRow[]>; fares: Record<string, FareRow[]> };
+
+const data: ABData = await fetch(`${base}/data/carrier_breakdown.json`).then(r => r.json());
+
+const AIRPORTS = ['IAD', 'DCA', 'BWI'] as const;
+const AP_COLOR: Record<string, string> = { IAD: '#4e9af1', DCA: '#f97316', BWI: '#22c55e' };
+
+const tt = document.getElementById('ab-tt') as HTMLElement;
+
+function posTT(x: number, y: number) {
+  tt.style.opacity = '1';
+  const tw = tt.offsetWidth, th = tt.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let lx = x + 14, ly = y - th / 2;
+  if (lx + tw > vw - 8) lx = x - tw - 14;
+  if (ly < 8) ly = 8;
+  if (ly + th > vh - 8) ly = vh - th - 8;
+  tt.style.left = `${lx}px`;
+  tt.style.top  = `${ly}px`;
+}
+const hideTT = () => { tt.style.opacity = '0'; };
+
+// ── Donut chart ──────────────────────────────────────────────────
+function drawDonut(ap: string) {
+  const el = document.getElementById(`ab-donut-${ap}`) as HTMLElement;
+  el.innerHTML = '';
+  const W = el.clientWidth;
+  if (W < 30) return;
+
+  const rows = data.share[ap];
+  const R   = Math.min(Math.floor(W * 0.30), 84);
+  const Ri  = Math.round(R * 0.54);
+  const fs1 = Math.max(Math.round(R * 0.16), 9);
+  const fs2 = Math.max(Math.round(R * 0.13), 8);
+  const iH  = 18;
+  const H   = R * 2 + 46 + rows.length * iH + 6;
+
+  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+
+  svg.append('text')
+    .attr('x', W / 2).attr('y', 15)
+    .attr('text-anchor', 'middle').attr('fill', AP_COLOR[ap])
+    .attr('font-size', 12).attr('font-weight', '700').attr('letter-spacing', '.08em')
+    .text(ap);
+
+  const cy = R + 28;
+  const g  = svg.append('g').attr('transform', `translate(${W / 2},${cy})`);
+
+  const pie    = d3.pie<ShareRow>().value((d: ShareRow) => d.pax).sort(null);
+  const arcFn  = d3.arc<d3.PieArcDatum<ShareRow>>().innerRadius(Ri).outerRadius(R);
+  const arcHov = d3.arc<d3.PieArcDatum<ShareRow>>().innerRadius(Ri).outerRadius(R + 5);
+
+  g.selectAll<SVGPathElement, d3.PieArcDatum<ShareRow>>('path')
+    .data(pie(rows))
+    .join('path')
+    .attr('d', (d: any) => arcFn(d)!)
+    .attr('fill', (d: any) => d.data.color)
+    .attr('stroke', '#0f1117')
+    .attr('stroke-width', 1.5)
+    .on('mousemove', function(this: SVGPathElement, ev: MouseEvent, d: any) {
+      d3.select(this).attr('d', arcHov(d)!);
+      tt.innerHTML = `<div class="ab-tt-name">${d.data.name}</div>
+        <div class="ab-tt-row"><span>${(d.data.pct * 100).toFixed(1)}%</span><span>${d.data.pax.toLocaleString()} passengers</span></div>`;
+      posTT(ev.clientX, ev.clientY);
+    })
+    .on('mouseleave', function(this: SVGPathElement, _ev: MouseEvent, d: any) {
+      d3.select(this).attr('d', arcFn(d)!);
+      hideTT();
+    });
+
+  const top = rows[0];
+  g.append('text')
+    .attr('text-anchor', 'middle').attr('y', -(fs1 * 0.2))
+    .attr('dominant-baseline', 'middle').attr('fill', top.color)
+    .attr('font-size', fs1).attr('font-weight', '700')
+    .text(top.name);
+  g.append('text')
+    .attr('text-anchor', 'middle').attr('y', fs2 * 1.2)
+    .attr('dominant-baseline', 'middle').attr('fill', '#777')
+    .attr('font-size', fs2)
+    .text(`${(top.pct * 100).toFixed(0)}%`);
+
+  const legG = svg.append('g').attr('transform', `translate(14,${cy + R + 14})`);
+  const legW = W - 28;
+
+  rows.forEach((row, i) => {
+    const y = i * iH;
+    legG.append('rect').attr('y', y).attr('width', 9).attr('height', 9).attr('rx', 2).attr('fill', row.color);
+    legG.append('text').attr('x', 14).attr('y', y + 9).attr('fill', '#bbb').attr('font-size', '11')
+      .text(row.name);
+    legG.append('text').attr('x', legW).attr('y', y + 9).attr('text-anchor', 'end')
+      .attr('fill', '#666').attr('font-size', '11')
+      .text(`${(row.pct * 100).toFixed(1)}%`);
+  });
+}
+
+// ── Fare bar chart ───────────────────────────────────────────────
+const globalMax = (d3.max(
+  AIRPORTS.flatMap(ap => data.fares[ap]),
+  (d: FareRow) => d.median_fare
+) ?? 300) * 1.15;
+
+function drawFares(ap: string) {
+  const el = document.getElementById(`ab-fare-${ap}`) as HTMLElement;
+  el.innerHTML = '';
+  const W = el.clientWidth;
+  if (W < 30) return;
+
+  const rows = data.fares[ap];
+  const pad    = { t: 24, r: 42, b: 28, l: 68 };
+  const barH   = 20, gap = 9;
+  const innerW = W - pad.l - pad.r;
+  const innerH = rows.length * (barH + gap) - gap;
+  const H      = innerH + pad.t + pad.b;
+
+  const xSc = d3.scaleLinear().domain([0, globalMax]).range([0, innerW]);
+  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+
+  svg.append('text')
+    .attr('x', W / 2).attr('y', 14)
+    .attr('text-anchor', 'middle').attr('fill', AP_COLOR[ap])
+    .attr('font-size', 12).attr('font-weight', '700').attr('letter-spacing', '.08em')
+    .text(ap);
+
+  const g = svg.append('g').attr('transform', `translate(${pad.l},${pad.t})`);
+
+  xSc.ticks(4).forEach((t: number) => {
+    if (t === 0) return;
+    g.append('line')
+      .attr('x1', xSc(t)).attr('x2', xSc(t))
+      .attr('y1', 0).attr('y2', innerH)
+      .attr('stroke', '#1f2230').attr('stroke-width', 1);
+  });
+
+  rows.forEach((row, i) => {
+    const y  = i * (barH + gap);
+    const bw = Math.max(xSc(row.median_fare), 2);
+
+    g.append('text')
+      .attr('x', -6).attr('y', y + barH / 2)
+      .attr('text-anchor', 'end').attr('dominant-baseline', 'middle')
+      .attr('fill', '#bbb').attr('font-size', '11')
+      .text(row.name);
+
+    g.append('rect')
+      .attr('x', 0).attr('y', y)
+      .attr('width', bw).attr('height', barH)
+      .attr('rx', 3).attr('fill', row.color).attr('opacity', 0.82)
+      .on('mousemove', (ev: MouseEvent) => {
+        tt.innerHTML = `<div class="ab-tt-name">${row.name} — ${ap}</div>
+          <div class="ab-tt-row"><span>Median fare</span><span>$${row.median_fare.toFixed(0)}</span></div>`;
+        posTT(ev.clientX, ev.clientY);
+      })
+      .on('mouseleave', () => hideTT());
+
+    g.append('text')
+      .attr('x', bw + 5).attr('y', y + barH / 2)
+      .attr('dominant-baseline', 'middle')
+      .attr('fill', '#666').attr('font-size', '10')
+      .text(`$${row.median_fare.toFixed(0)}`);
+  });
+
+  g.append('g')
+    .attr('transform', `translate(0,${innerH})`)
+    .call(
+      d3.axisBottom(xSc)
+        .ticks(4)
+        .tickFormat((d: d3.NumberValue) => `$${+d}`)
+        .tickSize(4)
+    )
+    .call((ax: any) => {
+      ax.select('.domain').remove();
+      ax.selectAll('.tick line').attr('stroke', '#2a2d3a');
+      ax.selectAll('text').attr('fill', '#555').attr('font-size', '10');
+    });
+}
+
+function drawAll() {
+  AIRPORTS.forEach(ap => { drawDonut(ap); drawFares(ap); });
+}
+
+drawAll();
+
+let raf = 0;
+const ro = new ResizeObserver(() => {
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(drawAll);
+});
+ro.observe(root);
+</script>
+
+<style is:global>
+  #ab-tt {
+    position: fixed;
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+    background: rgba(15, 17, 23, 0.95);
+    border: 1px solid #2a2d3a;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.78rem;
+    color: #e8e8e8;
+    min-width: 130px;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  }
+  #ab-tt .ab-tt-name {
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.3rem;
+    font-size: 0.82rem;
+  }
+  #ab-tt .ab-tt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.25rem;
+    color: #aaa;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<style>
+  #ab-root {
+    padding: 0 1.5rem;
+  }
+  #ab-donut-grid,
+  #ab-fare-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+  #ab-donut-grid {
+    margin-bottom: 2.5rem;
+  }
+  #ab-fare-grid {
+    margin-bottom: 0.5rem;
+  }
+  .ab-panel {
+    min-width: 0;
+  }
+  .ab-divider-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-align: center;
+    margin: 0 0 1.25rem;
+    font-weight: 600;
+  }
+  @media (max-width: 640px) {
+    #ab-root { padding: 0 1rem; }
+    #ab-donut-grid,
+    #ab-fare-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+  }
+</style>
