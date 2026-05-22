@@ -222,10 +222,29 @@ function drawFares(ap: string) {
 const IAD_C = '#4e9af1';
 const DCA_C = '#f97316';
 
-function hashJitter(s: string, amp: number): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff;
-  return ((h / 0xffff) * 2 - 1) * amp;
+function beeswarm(xs: number[], r: number): number[] {
+  if (xs.length === 0) return [];
+  const diam = r * 2 + 1;
+  const placed: { x: number; y: number }[] = [];
+  const result = new Array(xs.length).fill(0);
+  const order = Array.from({ length: xs.length }, (_, i) => i).sort((a, b) => xs[a] - xs[b]);
+  outer: for (const idx of order) {
+    const px = xs[idx];
+    let py = 0;
+    for (let step = 0; step < 40; step++) {
+      const tries = step === 0 ? [0] : [step * diam, -(step * diam)];
+      for (const ty of tries) {
+        let ok = true;
+        for (const p of placed) {
+          const dx = px - p.x, dy = ty - p.y;
+          if (dx * dx + dy * dy < diam * diam) { ok = false; break; }
+        }
+        if (ok) { py = ty; placed.push({ x: px, y: py }); result[idx] = py; continue outer; }
+      }
+    }
+    placed.push({ x: px, y: py }); result[idx] = py;
+  }
+  return result;
 }
 
 function drawLollipop() {
@@ -240,8 +259,8 @@ function drawLollipop() {
   const iadRoutes = hp.routes.filter((r: RoutePoint) => r.ap === 'IAD');
   const dcaRoutes = hp.routes.filter((r: RoutePoint) => r.ap === 'DCA');
 
-  const rowH  = narrow ? 50 : 60;
-  const track = rowH * 0.18;
+  const rowH  = narrow ? 58 : 72;
+  const track = rowH * 0.22;
   const legH  = 24;
   const pad   = { t: legH + 12, r: narrow ? 76 : 148, b: 32, l: narrow ? 74 : 92 };
   const innerW = W - pad.l - pad.r;
@@ -322,13 +341,14 @@ function drawLollipop() {
         .attr('fill', 'rgba(255,255,255,0.015)');
     }
 
-    // DCA strip dots
-    carrDcaRoutes.forEach((r: RoutePoint) => {
-      const jy = hashJitter(r.dest + 'dca', track * 0.8);
+    // DCA strip dots (beeswarm)
+    const dcaXPx  = carrDcaRoutes.map((r: RoutePoint) => xSc(r.prem));
+    const dcaYOff = beeswarm(dcaXPx, 3);
+    carrDcaRoutes.forEach((r: RoutePoint, ri: number) => {
       g.append('circle')
-        .attr('cx', xSc(r.prem))
-        .attr('cy', dcaY + jy)
-        .attr('r', 3).attr('fill', DCA_C).attr('opacity', 0.22)
+        .attr('cx', dcaXPx[ri])
+        .attr('cy', dcaY + dcaYOff[ri])
+        .attr('r', 3).attr('fill', DCA_C).attr('opacity', 0.25)
         .style('cursor', 'default')
         .on('mousemove', (ev: MouseEvent) => {
           const diff = r.prem >= 0 ? `+$${r.prem} more at DCA` : `$${Math.abs(r.prem)} less at DCA`;
@@ -341,13 +361,14 @@ function drawLollipop() {
         .on('mouseleave', () => hideTT());
     });
 
-    // IAD strip dots
-    carrIadRoutes.forEach((r: RoutePoint) => {
-      const jy = hashJitter(r.dest + 'iad', track * 0.8);
+    // IAD strip dots (beeswarm)
+    const iadXPx  = carrIadRoutes.map((r: RoutePoint) => xSc(r.prem));
+    const iadYOff = beeswarm(iadXPx, 3);
+    carrIadRoutes.forEach((r: RoutePoint, ri: number) => {
       g.append('circle')
-        .attr('cx', xSc(r.prem))
-        .attr('cy', iadY + jy)
-        .attr('r', 3).attr('fill', IAD_C).attr('opacity', 0.22)
+        .attr('cx', iadXPx[ri])
+        .attr('cy', iadY + iadYOff[ri])
+        .attr('r', 3).attr('fill', IAD_C).attr('opacity', 0.25)
         .style('cursor', 'default')
         .on('mousemove', (ev: MouseEvent) => {
           const diff = r.prem >= 0 ? `+$${r.prem} more at IAD` : `$${Math.abs(r.prem)} less at IAD`;
