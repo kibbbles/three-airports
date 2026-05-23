@@ -1,0 +1,213 @@
+---
+---
+
+<div class="scatter-wrap">
+  <div id="anomaly-scatter"></div>
+  <div class="scatter-legend">
+    <span class="leg normal">Normal route-year</span>
+    <span class="leg iad">IAD anomaly</span>
+    <span class="leg dca">DCA anomaly</span>
+    <span class="leg bwi">BWI anomaly</span>
+  </div>
+</div>
+
+<div id="scatter-tooltip" class="scatter-tt" style="display:none"></div>
+
+<script>
+import {
+  select, max,
+  scaleLinear,
+  axisBottom, axisLeft,
+} from 'd3';
+import type { NumberValue } from 'd3';
+
+interface Row {
+  origin: string;
+  dest: string;
+  year: number;
+  late_rate: number;
+  mean_delay: number;
+  nas_share: number;
+  cancel_rate: number;
+  is_anomalous: number;
+}
+
+const raw: Row[] = await fetch('/data/anomaly_scatter.json').then(r => r.json());
+
+const AP_COLOR: Record<string, string> = {
+  IAD: '#4e9af1',
+  DCA: '#f97316',
+  BWI: '#22c55e',
+};
+const NORMAL_COLOR = '#3a3d4a';
+const NORMAL_RADIUS = 3;
+const ANOMALY_RADIUS = 5;
+
+const container = document.getElementById('anomaly-scatter')!;
+const tt = document.getElementById('scatter-tooltip')!;
+
+function draw() {
+  container.innerHTML = '';
+  const W = container.clientWidth || 680;
+  const H = Math.round(W * 0.52);
+  const margin = { top: 20, right: 24, bottom: 48, left: 54 };
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+
+  const svg = select(container)
+    .append('svg')
+    .attr('width', W)
+    .attr('height', H);
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const xMax = (max(raw, d => d.late_rate) ?? 0) * 1.05;
+  const yMax = (max(raw, d => d.mean_delay) ?? 0) * 1.05;
+
+  const x = scaleLinear().domain([0, xMax]).range([0, iW]).nice();
+  const y = scaleLinear().domain([0, yMax]).range([iH, 0]).nice();
+
+  // Grid lines
+  g.append('g')
+    .attr('class', 'grid')
+    .call(axisLeft(y).ticks(5).tickSize(-iW).tickFormat(() => ''))
+    .call(s => s.select('.domain').remove())
+    .call(s => s.selectAll('line').attr('stroke', '#2a2d3a').attr('stroke-dasharray', '3,3'));
+
+  g.append('g')
+    .attr('class', 'grid')
+    .attr('transform', `translate(0,${iH})`)
+    .call(axisBottom(x).ticks(6).tickSize(-iH).tickFormat(() => ''))
+    .call(s => s.select('.domain').remove())
+    .call(s => s.selectAll('line').attr('stroke', '#2a2d3a').attr('stroke-dasharray', '3,3'));
+
+  // Axes
+  g.append('g')
+    .attr('transform', `translate(0,${iH})`)
+    .call(axisBottom(x).ticks(6).tickFormat((d: NumberValue) => `${Math.round(+d * 100)}%`))
+    .call(s => s.select('.domain').attr('stroke', '#3a3d4a'))
+    .call(s => s.selectAll('text').attr('fill', '#888').attr('font-size', '11px'))
+    .call(s => s.selectAll('line').attr('stroke', '#3a3d4a'));
+
+  g.append('g')
+    .call(axisLeft(y).ticks(5).tickFormat((d: NumberValue) => `+${d}m`))
+    .call(s => s.select('.domain').attr('stroke', '#3a3d4a'))
+    .call(s => s.selectAll('text').attr('fill', '#888').attr('font-size', '11px'))
+    .call(s => s.selectAll('line').attr('stroke', '#3a3d4a'));
+
+  // Axis labels
+  g.append('text')
+    .attr('x', iW / 2)
+    .attr('y', iH + 40)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#888')
+    .attr('font-size', '12px')
+    .text('Late-arrival rate');
+
+  g.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -iH / 2)
+    .attr('y', -42)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#888')
+    .attr('font-size', '12px')
+    .text('Mean delay (min)');
+
+  // Points — normal first (behind)
+  const normal = raw.filter(d => d.is_anomalous === 0);
+  const anomalous = raw.filter(d => d.is_anomalous === 1);
+
+  g.selectAll<SVGCircleElement, Row>('.dot-normal')
+    .data(normal)
+    .join('circle')
+    .attr('class', 'dot-normal')
+    .attr('cx', d => x(d.late_rate))
+    .attr('cy', d => y(d.mean_delay))
+    .attr('r', NORMAL_RADIUS)
+    .attr('fill', NORMAL_COLOR)
+    .attr('fill-opacity', 0.7);
+
+  g.selectAll<SVGCircleElement, Row>('.dot-anomaly')
+    .data(anomalous)
+    .join('circle')
+    .attr('class', 'dot-anomaly')
+    .attr('cx', d => x(d.late_rate))
+    .attr('cy', d => y(d.mean_delay))
+    .attr('r', ANOMALY_RADIUS)
+    .attr('fill', d => AP_COLOR[d.origin] ?? '#fff')
+    .attr('fill-opacity', 0.85)
+    .attr('stroke', '#0f1117')
+    .attr('stroke-width', 0.8)
+    .on('mousemove', (event: MouseEvent, d: Row) => {
+      tt.style.display = 'block';
+      tt.style.left = (event.pageX + 14) + 'px';
+      tt.style.top = (event.pageY - 28) + 'px';
+      tt.innerHTML = `
+        <strong>${d.origin} → ${d.dest}</strong> <span class="tt-year">${d.year}</span><br>
+        Late rate: <strong>${(d.late_rate * 100).toFixed(1)}%</strong><br>
+        Mean delay: <strong>+${d.mean_delay.toFixed(1)} min</strong><br>
+        NAS share: <strong>${(d.nas_share * 100).toFixed(1)}%</strong><br>
+        Cancel rate: <strong>${(d.cancel_rate * 100).toFixed(1)}%</strong>
+      `;
+    })
+    .on('mouseleave', () => { tt.style.display = 'none'; });
+}
+
+draw();
+window.addEventListener('resize', () => draw());
+</script>
+
+<style>
+  .scatter-wrap {
+    margin-top: 1.5rem;
+  }
+
+  #anomaly-scatter svg {
+    display: block;
+    width: 100%;
+  }
+
+  .scatter-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .leg {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--muted);
+  }
+  .leg::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .leg.normal::before  { background: #3a3d4a; }
+  .leg.iad::before     { background: #4e9af1; }
+  .leg.dca::before     { background: #f97316; }
+  .leg.bwi::before     { background: #22c55e; }
+
+  .scatter-tt {
+    position: fixed;
+    background: #1a1d27;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text);
+    pointer-events: none;
+    z-index: 100;
+    line-height: 1.6;
+    white-space: nowrap;
+  }
+  .scatter-tt .tt-year {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+</style>
