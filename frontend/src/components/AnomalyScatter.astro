@@ -1,8 +1,10 @@
 ---
+import rawData from '@data/anomaly_scatter.json';
+const dataJSON = JSON.stringify(rawData);
 ---
 
 <div class="scatter-wrap">
-  <div id="anomaly-scatter"></div>
+  <div id="anomaly-scatter" data-scatter={dataJSON}></div>
   <div class="scatter-legend">
     <span class="leg normal">Normal route-year</span>
     <span class="leg iad">IAD anomaly</span>
@@ -32,7 +34,8 @@ interface Row {
   is_anomalous: number;
 }
 
-const raw: Row[] = await fetch('/data/anomaly_scatter.json').then(r => r.json());
+const container = document.getElementById('anomaly-scatter')!;
+const raw: Row[] = JSON.parse(container.dataset.scatter!);
 
 const AP_COLOR: Record<string, string> = {
   IAD: '#4e9af1',
@@ -43,7 +46,6 @@ const NORMAL_COLOR = '#3a3d4a';
 const NORMAL_RADIUS = 3;
 const ANOMALY_RADIUS = 5;
 
-const container = document.getElementById('anomaly-scatter')!;
 const tt = document.getElementById('scatter-tooltip')!;
 
 function draw() {
