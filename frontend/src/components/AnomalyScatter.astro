@@ -3,9 +3,9 @@ import rawData from '@data/anomaly_scatter.json';
 const dataJSON = JSON.stringify(rawData);
 ---
 
-<div class="scatter-wrap">
-  <div id="anomaly-scatter" data-scatter={dataJSON}></div>
-  <div class="scatter-legend">
+<div class="pchart-wrap">
+  <div id="anomaly-pchart" data-scatter={dataJSON}></div>
+  <div class="pchart-legend">
     <span class="leg normal">Normal route-year</span>
     <span class="leg iad">IAD anomaly</span>
     <span class="leg dca">DCA anomaly</span>
@@ -13,13 +13,14 @@ const dataJSON = JSON.stringify(rawData);
   </div>
 </div>
 
-<div id="scatter-tooltip" class="scatter-tt" style="display:none"></div>
+<div id="pchart-tooltip" class="pchart-tt" style="display:none"></div>
 
 <script>
 import {
-  select, max,
+  select, extent,
   scaleLinear,
-  axisBottom, axisLeft,
+  axisLeft,
+  line,
 } from 'd3';
 import type { NumberValue } from 'd3';
 
@@ -34,25 +35,35 @@ interface Row {
   is_anomalous: number;
 }
 
-const container = document.getElementById('anomaly-scatter')!;
+interface Feature {
+  key: keyof Row;
+  label: string;
+  fmt: (v: number) => string;
+}
+
+const container = document.getElementById('anomaly-pchart')!;
 const raw: Row[] = JSON.parse(container.dataset.scatter!);
+
+const FEATURES: Feature[] = [
+  { key: 'late_rate',   label: 'Late-arrival rate', fmt: v => `${(v*100).toFixed(1)}%`   },
+  { key: 'mean_delay',  label: 'Mean delay',         fmt: v => `+${v.toFixed(0)} min`     },
+  { key: 'nas_share',   label: 'NAS delay share',    fmt: v => `${(v*100).toFixed(1)}%`   },
+  { key: 'cancel_rate', label: 'Cancellation rate',  fmt: v => `${(v*100).toFixed(1)}%`   },
+];
 
 const AP_COLOR: Record<string, string> = {
   IAD: '#4e9af1',
   DCA: '#f97316',
   BWI: '#22c55e',
 };
-const NORMAL_COLOR = '#3a3d4a';
-const NORMAL_RADIUS = 3;
-const ANOMALY_RADIUS = 5;
 
-const tt = document.getElementById('scatter-tooltip')!;
+const tt = document.getElementById('pchart-tooltip')!;
 
 function draw() {
   container.innerHTML = '';
-  const W = container.clientWidth || 680;
-  const H = Math.round(W * 0.52);
-  const margin = { top: 20, right: 24, bottom: 48, left: 54 };
+  const W  = container.clientWidth || 680;
+  const H  = Math.round(W * 0.56);
+  const margin = { top: 40, right: 20, bottom: 20, left: 20 };
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -63,96 +74,99 @@ function draw() {
 
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-  const xMax = (max(raw, d => d.late_rate) ?? 0) * 1.05;
-  const yMax = (max(raw, d => d.mean_delay) ?? 0) * 1.05;
+  // One y-scale per feature
+  const yScales = FEATURES.map(f =>
+    scaleLinear()
+      .domain(extent(raw, d => d[f.key] as number) as [number, number])
+      .range([iH, 0])
+      .nice()
+  );
 
-  const x = scaleLinear().domain([0, xMax]).range([0, iW]).nice();
-  const y = scaleLinear().domain([0, yMax]).range([iH, 0]).nice();
+  // Evenly spaced x positions for each axis
+  const xPos = FEATURES.map((_, i) => (iW / (FEATURES.length - 1)) * i);
 
-  // Grid lines
-  g.append('g')
-    .attr('class', 'grid')
-    .call(axisLeft(y).ticks(5).tickSize(-iW).tickFormat(() => ''))
-    .call(s => s.select('.domain').remove())
-    .call(s => s.selectAll('line').attr('stroke', '#2a2d3a').attr('stroke-dasharray', '3,3'));
+  // Path generator for a single row
+  function rowPath(d: Row): string {
+    const pts = FEATURES.map((f, i) => [xPos[i], yScales[i](d[f.key] as number)] as [number, number]);
+    return line()(pts) ?? '';
+  }
 
-  g.append('g')
-    .attr('class', 'grid')
-    .attr('transform', `translate(0,${iH})`)
-    .call(axisBottom(x).ticks(6).tickSize(-iH).tickFormat(() => ''))
-    .call(s => s.select('.domain').remove())
-    .call(s => s.selectAll('line').attr('stroke', '#2a2d3a').attr('stroke-dasharray', '3,3'));
-
-  // Axes
-  g.append('g')
-    .attr('transform', `translate(0,${iH})`)
-    .call(axisBottom(x).ticks(6).tickFormat((d: NumberValue) => `${Math.round(+d * 100)}%`))
-    .call(s => s.select('.domain').attr('stroke', '#3a3d4a'))
-    .call(s => s.selectAll('text').attr('fill', '#888').attr('font-size', '11px'))
-    .call(s => s.selectAll('line').attr('stroke', '#3a3d4a'));
-
-  g.append('g')
-    .call(axisLeft(y).ticks(5).tickFormat((d: NumberValue) => `+${d}m`))
-    .call(s => s.select('.domain').attr('stroke', '#3a3d4a'))
-    .call(s => s.selectAll('text').attr('fill', '#888').attr('font-size', '11px'))
-    .call(s => s.selectAll('line').attr('stroke', '#3a3d4a'));
-
-  // Axis labels
-  g.append('text')
-    .attr('x', iW / 2)
-    .attr('y', iH + 40)
-    .attr('text-anchor', 'middle')
-    .attr('fill', '#888')
-    .attr('font-size', '12px')
-    .text('Late-arrival rate');
-
-  g.append('text')
-    .attr('transform', 'rotate(-90)')
-    .attr('x', -iH / 2)
-    .attr('y', -42)
-    .attr('text-anchor', 'middle')
-    .attr('fill', '#888')
-    .attr('font-size', '12px')
-    .text('Mean delay (min)');
-
-  // Points — normal first (behind)
-  const normal = raw.filter(d => d.is_anomalous === 0);
+  const normal    = raw.filter(d => d.is_anomalous === 0);
   const anomalous = raw.filter(d => d.is_anomalous === 1);
 
-  g.selectAll<SVGCircleElement, Row>('.dot-normal')
+  // Normal lines (behind, very faint)
+  g.append('g').attr('class', 'lines-normal')
+    .selectAll<SVGPathElement, Row>('path')
     .data(normal)
-    .join('circle')
-    .attr('class', 'dot-normal')
-    .attr('cx', d => x(d.late_rate))
-    .attr('cy', d => y(d.mean_delay))
-    .attr('r', NORMAL_RADIUS)
-    .attr('fill', NORMAL_COLOR)
-    .attr('fill-opacity', 0.7);
-
-  g.selectAll<SVGCircleElement, Row>('.dot-anomaly')
-    .data(anomalous)
-    .join('circle')
-    .attr('class', 'dot-anomaly')
-    .attr('cx', d => x(d.late_rate))
-    .attr('cy', d => y(d.mean_delay))
-    .attr('r', ANOMALY_RADIUS)
-    .attr('fill', d => AP_COLOR[d.origin] ?? '#fff')
-    .attr('fill-opacity', 0.85)
-    .attr('stroke', '#0f1117')
+    .join('path')
+    .attr('d', rowPath)
+    .attr('fill', 'none')
+    .attr('stroke', '#3a3d4a')
     .attr('stroke-width', 0.8)
-    .on('mousemove', (event: MouseEvent, d: Row) => {
+    .attr('stroke-opacity', 0.4);
+
+  // Anomalous lines (colored, interactive)
+  const anomPaths = g.append('g').attr('class', 'lines-anomaly')
+    .selectAll<SVGPathElement, Row>('path')
+    .data(anomalous)
+    .join('path')
+    .attr('d', rowPath)
+    .attr('fill', 'none')
+    .attr('stroke', d => AP_COLOR[d.origin] ?? '#fff')
+    .attr('stroke-width', 1.4)
+    .attr('stroke-opacity', 0.55)
+    .on('mousemove', function(event: MouseEvent, d: Row) {
+      // Highlight this line, dim others
+      anomPaths.attr('stroke-opacity', 0.1).attr('stroke-width', 0.8);
+      select(this)
+        .attr('stroke-opacity', 1)
+        .attr('stroke-width', 2.5)
+        .raise();
+
       tt.style.display = 'block';
       tt.style.left = (event.pageX + 14) + 'px';
-      tt.style.top = (event.pageY - 28) + 'px';
+      tt.style.top  = (event.pageY - 28) + 'px';
       tt.innerHTML = `
-        <strong>${d.origin} → ${d.dest}</strong> <span class="tt-year">${d.year}</span><br>
-        Late rate: <strong>${(d.late_rate * 100).toFixed(1)}%</strong><br>
-        Mean delay: <strong>+${d.mean_delay.toFixed(1)} min</strong><br>
-        NAS share: <strong>${(d.nas_share * 100).toFixed(1)}%</strong><br>
-        Cancel rate: <strong>${(d.cancel_rate * 100).toFixed(1)}%</strong>
+        <strong>${d.origin} &rarr; ${d.dest}</strong> <span class="tt-year">${d.year}</span><br>
+        ${FEATURES.map(f => `${f.label}: <strong>${f.fmt(d[f.key] as number)}</strong>`).join('<br>')}
       `;
     })
-    .on('mouseleave', () => { tt.style.display = 'none'; });
+    .on('mouseleave', () => {
+      anomPaths.attr('stroke-opacity', 0.55).attr('stroke-width', 1.4);
+      tt.style.display = 'none';
+    });
+
+  // Axis lines + ticks
+  FEATURES.forEach((f, i) => {
+    const axisG = g.append('g').attr('transform', `translate(${xPos[i]},0)`);
+
+    // Vertical axis line
+    axisG.append('line')
+      .attr('y1', 0).attr('y2', iH)
+      .attr('stroke', '#444').attr('stroke-width', 1);
+
+    // Ticks
+    axisG.call(
+      axisLeft(yScales[i]).ticks(4)
+        .tickFormat((v: NumberValue) => f.fmt(+v))
+    )
+    .call(s => s.select('.domain').remove())
+    .call(s => s.selectAll('text')
+      .attr('fill', '#888')
+      .attr('font-size', '10px')
+      .attr('x', i === 0 ? -6 : (i === FEATURES.length - 1 ? 6 : 0))
+      .attr('text-anchor', i === 0 ? 'end' : (i === FEATURES.length - 1 ? 'start' : 'middle'))
+    )
+    .call(s => s.selectAll('line').attr('stroke', '#444'));
+
+    // Axis label at top
+    axisG.append('text')
+      .attr('y', -14)
+      .attr('text-anchor', 'middle')
+      .attr('fill', '#aaa')
+      .attr('font-size', '11px')
+      .text(f.label);
+  });
 }
 
 draw();
@@ -160,16 +174,17 @@ window.addEventListener('resize', () => draw());
 </script>
 
 <style>
-  .scatter-wrap {
+  .pchart-wrap {
     margin-top: 1.5rem;
   }
 
-  #anomaly-scatter svg {
+  #anomaly-pchart svg {
     display: block;
     width: 100%;
+    overflow: visible;
   }
 
-  .scatter-legend {
+  .pchart-legend {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem 1.25rem;
@@ -187,16 +202,16 @@ window.addEventListener('resize', () => draw());
   .leg::before {
     content: '';
     display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+    width: 22px;
+    height: 3px;
+    border-radius: 2px;
   }
   .leg.normal::before  { background: #3a3d4a; }
   .leg.iad::before     { background: #4e9af1; }
   .leg.dca::before     { background: #f97316; }
   .leg.bwi::before     { background: #22c55e; }
 
-  .scatter-tt {
+  .pchart-tt {
     position: fixed;
     background: #1a1d27;
     border: 1px solid #2a2d3a;
@@ -206,10 +221,10 @@ window.addEventListener('resize', () => draw());
     color: var(--text);
     pointer-events: none;
     z-index: 100;
-    line-height: 1.6;
+    line-height: 1.7;
     white-space: nowrap;
   }
-  .scatter-tt .tt-year {
+  .pchart-tt .tt-year {
     color: var(--muted);
     font-size: 0.75rem;
   }

@@ -235,9 +235,12 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
         red-eye is going to have different base delay rates than a regional hop.
       </p>
       <p>
-        The scatter below shows all 838 route-year observations from 2022 onward. Gray points are within
-        normal range for that route. Colored points stood out from that route's own pre-pandemic
-        track record.
+        The chart below shows all 838 route-year observations from 2022 onward as parallel lines,
+        one per route-year, connecting its value on each of the four axes from left to right. Gray
+        lines are within normal range for that route. Colored lines deviated from their own
+        pre-pandemic track record on at least one dimension. Hover any colored line to see the
+        route and its exact values. A route that looks unremarkable on late-arrival rate may still
+        stand out because its cancellation rate or NAS delay share shifted after 2022.
       </p>
     </div>
     <div class="section-chart prose">
@@ -247,9 +250,9 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
       <p>
         A single bad year could be weather, a labor dispute, a one-off event. To find routes with a
         genuine structural problem, I kept only those that stood out in at least two of the five
-        post-2022 years. That comes to 87 out of the 174, split as 42 at BWI, 30 at DCA, and 15 at
-        IAD. That share is high, but it reflects how broadly airline performance shifted after the
-        pandemic. These routes weren't just having an off year; they deviated from their own
+        post-2022 years. That comes to 75 out of 174, split as 36 at BWI, 26 at DCA, and 13 at
+        IAD. That share is still high, but it reflects how broadly airline performance shifted after
+        the pandemic. These routes weren't just having an off year; they deviated from their own
         pre-pandemic baseline repeatedly. BWI→ATL, BWI→HOU, BWI→MDW, and DCA→CLT have stood
         out every year without exception.
       </p>
