@@ -222,22 +222,22 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
       <p>
         Not all delays are equal. Some routes run late on a bad day; others have been structurally
         broken for years. To separate the two, I looked at 174 routes with enough history to establish
-        a pre-pandemic baseline — at least three years of data from 2015–2019 and at least 100 flights
-        a year. For each route, I built a picture of what "normal" looked like using four metrics:
+        a pre-pandemic baseline, requiring at least three years of data from 2015–2019 and at least 100
+        flights a year. For each route, I built a picture of what "normal" looked like using four metrics:
         what fraction of flights arrived late, the average delay in minutes, how much of that delay
         came from the air-traffic control system rather than the carrier, and the cancellation rate.
       </p>
       <p>
-        Then I checked whether 2022 and beyond fit that picture. The method — Isolation Forest — works
-        by asking how easy it is to statistically isolate a data point from everything else. A route-year
-        that's hard to isolate looks like the crowd; one that's easy to isolate is an outlier. Crucially,
-        each route is judged against its own history, not against other routes. That controls for the fact
-        that a cross-country red-eye is going to have different base delay rates than a regional hop.
+        Then I checked whether 2022 and beyond fit that picture. The approach works by asking how easy
+        it is to statistically isolate a data point from everything else. A route-year that blends into
+        the crowd is normal; one that stands apart is an outlier. Crucially, each route is judged against
+        its own history, not against other routes. That controls for the fact that a cross-country
+        red-eye is going to have different base delay rates than a regional hop.
       </p>
       <p>
         The scatter below shows all 838 route-year observations from 2022 onward. Gray points are within
-        normal range for that route. Colored points were flagged as anomalous — statistically harder to
-        explain given that route's own pre-pandemic track record.
+        normal range for that route. Colored points stood out from that route's own pre-pandemic
+        track record.
       </p>
     </div>
     <div class="section-chart prose">
@@ -246,12 +246,15 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     <div class="prose">
       <p>
         A single bad year could be weather, a labor dispute, a one-off event. To find routes with a
-        genuine structural problem, I filtered to routes flagged in at least two of the five post-2022
-        years. That leaves 87 routes — 42 at BWI, 30 at DCA, 15 at IAD. BWI→ATL, BWI→HOU,
-        BWI→MDW, and DCA→CLT have been flagged every year without exception.
+        genuine structural problem, I kept only those that stood out in at least two of the five
+        post-2022 years. That comes to 87 out of the 174, split as 42 at BWI, 30 at DCA, and 15 at
+        IAD. That share is high, but it reflects how broadly airline performance shifted after the
+        pandemic. These routes weren't just having an off year; they deviated from their own
+        pre-pandemic baseline repeatedly. BWI→ATL, BWI→HOU, BWI→MDW, and DCA→CLT have stood
+        out every year without exception.
       </p>
       <p>
-        The bars below show persistence: a full bar means the route has been anomalous every single
+        The bars below show persistence: a full bar means the route had above-normal delays every
         year since 2022. It hasn't had a good stretch.
       </p>
     </div>
