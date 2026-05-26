@@ -1,0 +1,312 @@
+---
+import rawData from '@data/cancellation_data.json';
+const dataJSON = JSON.stringify(rawData);
+---
+
+<div class="cancel-wrap" id="cancel-root" data-cancel={dataJSON}>
+  <div id="cancel-annual"></div>
+
+  <h3 class="sub-head">By carrier <span class="sub-note">(2022–2025, min 5,000 flights)</span></h3>
+  <div id="cancel-carrier"></div>
+
+  <h3 class="sub-head">By season <span class="sub-note">(2015–2025 avg)</span></h3>
+  <div id="cancel-seasonal"></div>
+</div>
+
+<div id="cancel-tooltip" class="cancel-tt" style="display:none"></div>
+
+<script>
+import {
+  select, extent, max,
+  scaleLinear, scaleBand, scaleOrdinal,
+  axisBottom, axisLeft, axisRight,
+  line as d3line,
+} from 'd3';
+import type { NumberValue } from 'd3';
+
+interface AnnualRow  { airport: string; year: number; rate: number; cancelled: number; total: number }
+interface CarrierRow { airport: string; carrier: string; carrier_name: string; rate: number; total: number }
+interface SeasonRow  { airport: string; season: string; rate: number }
+
+const root = document.getElementById('cancel-root')!;
+const parsed = JSON.parse(root.dataset.cancel!);
+const annual:   AnnualRow[]  = parsed.annual;
+const carrier:  CarrierRow[] = parsed.carrier;
+const seasonal: SeasonRow[]  = parsed.seasonal;
+
+const AP_COLOR: Record<string, string> = { IAD:'#4e9af1', DCA:'#f97316', BWI:'#22c55e' };
+const AIRPORTS = ['IAD','DCA','BWI'];
+const SEASONS  = ['Spring','Summer','Fall','Winter'];
+const tt = document.getElementById('cancel-tooltip')!;
+
+function showTt(event: MouseEvent, html: string) {
+  tt.style.display = 'block';
+  tt.style.left = (event.pageX + 14) + 'px';
+  tt.style.top  = (event.pageY - 28) + 'px';
+  tt.innerHTML  = html;
+}
+function hideTt() { tt.style.display = 'none'; }
+
+// ── Annual line chart ────────────────────────────────────────────────────
+function drawAnnual() {
+  const el = document.getElementById('cancel-annual')!;
+  el.innerHTML = '';
+  const W = el.clientWidth || 680;
+  const H = Math.round(W * 0.42);
+  const m = { top: 16, right: 56, bottom: 32, left: 48 };
+  const iW = W - m.left - m.right;
+  const iH = H - m.top  - m.bottom;
+
+  const svg = select(el).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const years = [...new Set(annual.map(d => d.year))].sort();
+  const rateMax = (max(annual, d => d.rate) ?? 0) * 1.1;
+
+  const x = scaleLinear().domain([years[0], years[years.length-1]]).range([0, iW]);
+  const y = scaleLinear().domain([0, rateMax]).range([iH, 0]).nice();
+
+  // COVID band
+  g.append('rect')
+    .attr('x', x(2020)).attr('width', x(2021) - x(2020))
+    .attr('y', 0).attr('height', iH)
+    .attr('fill', '#ffffff').attr('fill-opacity', 0.04);
+  g.append('text')
+    .attr('x', (x(2020) + x(2021)) / 2).attr('y', 10)
+    .attr('text-anchor', 'middle').attr('fill', '#555').attr('font-size', '10px')
+    .text('COVID');
+
+  // Gridlines
+  g.append('g')
+    .call(axisLeft(y).ticks(4).tickSize(-iW).tickFormat(() => ''))
+    .call(s => s.select('.domain').remove())
+    .call(s => s.selectAll('line').attr('stroke','#2a2d3a').attr('stroke-dasharray','3,3'));
+
+  // Axes
+  g.append('g').attr('transform', `translate(0,${iH})`)
+    .call(axisBottom(x).ticks(years.length).tickFormat((d: NumberValue) => `${d}`))
+    .call(s => s.select('.domain').attr('stroke','#3a3d4a'))
+    .call(s => s.selectAll('text').attr('fill','#888').attr('font-size','11px'))
+    .call(s => s.selectAll('line').attr('stroke','#3a3d4a'));
+
+  g.append('g')
+    .call(axisLeft(y).ticks(4).tickFormat((d: NumberValue) => `${(+d*100).toFixed(0)}%`))
+    .call(s => s.select('.domain').attr('stroke','#3a3d4a'))
+    .call(s => s.selectAll('text').attr('fill','#888').attr('font-size','11px'))
+    .call(s => s.selectAll('line').attr('stroke','#3a3d4a'));
+
+  // Lines + dots per airport
+  AIRPORTS.forEach(ap => {
+    const rows = annual.filter(d => d.airport === ap).sort((a,b) => a.year - b.year);
+    const pathFn = d3line<AnnualRow>().x(d => x(d.year)).y(d => y(d.rate));
+
+    g.append('path').datum(rows)
+      .attr('fill','none')
+      .attr('stroke', AP_COLOR[ap])
+      .attr('stroke-width', 2)
+      .attr('d', pathFn);
+
+    g.selectAll<SVGCircleElement, AnnualRow>(`.dot-${ap}`)
+      .data(rows).join('circle')
+      .attr('class', `dot-${ap}`)
+      .attr('cx', d => x(d.year)).attr('cy', d => y(d.rate))
+      .attr('r', 4).attr('fill', AP_COLOR[ap]).attr('stroke','#0f1117').attr('stroke-width',1.5)
+      .on('mousemove', (ev: MouseEvent, d: AnnualRow) =>
+        showTt(ev, `<strong>${d.airport} ${d.year}</strong><br>Cancel rate: <strong>${(d.rate*100).toFixed(2)}%</strong><br>${d.cancelled.toLocaleString()} of ${d.total.toLocaleString()} flights`))
+      .on('mouseleave', hideTt);
+  });
+
+  // Legend (right side)
+  AIRPORTS.forEach((ap, i) => {
+    const lastRow = annual.filter(d => d.airport === ap).sort((a,b) => b.year - a.year)[0];
+    g.append('text')
+      .attr('x', iW + 6)
+      .attr('y', y(lastRow.rate))
+      .attr('dy', '0.35em')
+      .attr('fill', AP_COLOR[ap])
+      .attr('font-size', '12px')
+      .attr('font-weight', '600')
+      .text(ap);
+  });
+}
+
+// ── Carrier bar chart ───────────────────────────────────────────────────
+function drawCarrier() {
+  const el = document.getElementById('cancel-carrier')!;
+  el.innerHTML = '';
+
+  // Filter to min 5000 flights, top 6 per airport by rate
+  const filtered = carrier
+    .filter(d => d.total >= 5000)
+    .sort((a,b) => b.rate - a.rate);
+
+  if (!filtered.length) return;
+
+  const W = el.clientWidth || 680;
+  const barH = 22, gap = 4, groupGap = 14;
+
+  // Group by airport
+  const groups: Record<string, CarrierRow[]> = {};
+  AIRPORTS.forEach(ap => { groups[ap] = filtered.filter(d => d.airport === ap); });
+
+  const totalBars = AIRPORTS.reduce((s, ap) => s + groups[ap].length, 0);
+  const H = totalBars * (barH + gap) + AIRPORTS.length * groupGap + 32;
+  const m = { top: 8, right: 80, bottom: 24, left: 140 };
+  const iW = W - m.left - m.right;
+
+  const svg = select(el).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const rateMax = (max(filtered, d => d.rate) ?? 0) * 1.1;
+  const x = scaleLinear().domain([0, rateMax]).range([0, iW]).nice();
+
+  g.append('g').attr('transform', `translate(0,${H - m.top - m.bottom})`)
+    .call(axisBottom(x).ticks(4).tickFormat((d: NumberValue) => `${(+d*100).toFixed(0)}%`))
+    .call(s => s.select('.domain').attr('stroke','#3a3d4a'))
+    .call(s => s.selectAll('text').attr('fill','#888').attr('font-size','11px'))
+    .call(s => s.selectAll('line').attr('stroke','#3a3d4a'));
+
+  let yOffset = 0;
+  AIRPORTS.forEach(ap => {
+    const rows = groups[ap];
+    if (!rows.length) return;
+
+    g.append('text')
+      .attr('x', -m.left + 4).attr('y', yOffset + barH / 2)
+      .attr('dy','0.35em').attr('fill', AP_COLOR[ap])
+      .attr('font-size','11px').attr('font-weight','600')
+      .text(ap);
+
+    rows.forEach(d => {
+      const bW = x(d.rate);
+      g.append('rect')
+        .attr('x', 0).attr('y', yOffset)
+        .attr('width', bW).attr('height', barH)
+        .attr('fill', AP_COLOR[ap]).attr('fill-opacity', 0.75).attr('rx', 2)
+        .on('mousemove', (ev: MouseEvent) =>
+          showTt(ev, `<strong>${d.airport}: ${d.carrier_name}</strong><br>Cancel rate: <strong>${(d.rate*100).toFixed(1)}%</strong><br>${d.total.toLocaleString()} flights (2022–2025)`))
+        .on('mouseleave', hideTt);
+
+      g.append('text')
+        .attr('x', -6).attr('y', yOffset + barH / 2)
+        .attr('dy','0.35em').attr('text-anchor','end')
+        .attr('fill','#ccc').attr('font-size','11px')
+        .text(d.carrier_name);
+
+      g.append('text')
+        .attr('x', bW + 5).attr('y', yOffset + barH / 2)
+        .attr('dy','0.35em').attr('fill','#888').attr('font-size','10px')
+        .text(`${(d.rate*100).toFixed(1)}%`);
+
+      yOffset += barH + gap;
+    });
+    yOffset += groupGap;
+  });
+}
+
+// ── Seasonal grouped bar chart ──────────────────────────────────────────
+function drawSeasonal() {
+  const el = document.getElementById('cancel-seasonal')!;
+  el.innerHTML = '';
+
+  const W = el.clientWidth || 680;
+  const H = Math.round(W * 0.32);
+  const m = { top: 8, right: 16, bottom: 36, left: 48 };
+  const iW = W - m.left - m.right;
+  const iH = H - m.top  - m.bottom;
+
+  const svg = select(el).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const rateMax = (max(seasonal, d => d.rate) ?? 0) * 1.15;
+  const xSeason = scaleBand().domain(SEASONS).range([0, iW]).padding(0.2);
+  const xAp     = scaleBand().domain(AIRPORTS).range([0, xSeason.bandwidth()]).padding(0.08);
+  const y = scaleLinear().domain([0, rateMax]).range([iH, 0]).nice();
+
+  g.append('g').attr('transform',`translate(0,${iH})`)
+    .call(axisBottom(xSeason))
+    .call(s => s.select('.domain').attr('stroke','#3a3d4a'))
+    .call(s => s.selectAll('text').attr('fill','#aaa').attr('font-size','12px'))
+    .call(s => s.selectAll('line').attr('stroke','#3a3d4a'));
+
+  g.append('g')
+    .call(axisLeft(y).ticks(4).tickFormat((d: NumberValue) => `${(+d*100).toFixed(0)}%`))
+    .call(s => s.select('.domain').attr('stroke','#3a3d4a'))
+    .call(s => s.selectAll('text').attr('fill','#888').attr('font-size','11px'))
+    .call(s => s.selectAll('line').attr('stroke','#3a3d4a'));
+
+  SEASONS.forEach(season => {
+    AIRPORTS.forEach(ap => {
+      const row = seasonal.find(d => d.airport === ap && d.season === season);
+      if (!row) return;
+      g.append('rect')
+        .attr('x', (xSeason(season) ?? 0) + (xAp(ap) ?? 0))
+        .attr('y', y(row.rate))
+        .attr('width', xAp.bandwidth())
+        .attr('height', iH - y(row.rate))
+        .attr('fill', AP_COLOR[ap])
+        .attr('fill-opacity', 0.8)
+        .attr('rx', 2)
+        .on('mousemove', (ev: MouseEvent) =>
+          showTt(ev, `<strong>${ap} — ${season}</strong><br>Cancel rate: <strong>${(row.rate*100).toFixed(2)}%</strong>`))
+        .on('mouseleave', hideTt);
+    });
+  });
+
+  // Airport legend
+  const legG = g.append('g').attr('transform', `translate(${iW - 90}, 0)`);
+  AIRPORTS.forEach((ap, i) => {
+    legG.append('rect').attr('x',0).attr('y', i*18).attr('width',12).attr('height',12)
+      .attr('fill', AP_COLOR[ap]).attr('rx',2);
+    legG.append('text').attr('x',16).attr('y', i*18+6).attr('dy','0.35em')
+      .attr('fill','#aaa').attr('font-size','11px').text(ap);
+  });
+}
+
+drawAnnual();
+drawCarrier();
+drawSeasonal();
+window.addEventListener('resize', () => { drawAnnual(); drawCarrier(); drawSeasonal(); });
+</script>
+
+<style>
+  .cancel-wrap { margin-top: 1.5rem; }
+
+  #cancel-annual svg,
+  #cancel-carrier svg,
+  #cancel-seasonal svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .sub-head {
+    margin: 2rem 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .sub-note {
+    font-weight: 400;
+    text-transform: none;
+    color: var(--muted);
+    font-size: 0.78rem;
+    letter-spacing: 0;
+  }
+
+  .cancel-tt {
+    position: fixed;
+    background: #1a1d27;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text);
+    pointer-events: none;
+    z-index: 100;
+    line-height: 1.7;
+    white-space: nowrap;
+  }
+</style>

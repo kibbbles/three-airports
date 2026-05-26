@@ -6,6 +6,7 @@ import FareComparison from '../components/FareComparison.astro';
 import AnomalyList from '../components/AnomalyList.astro';
 import AnomalyScatter from '../components/AnomalyScatter.astro';
 import ForecastChart from '../components/ForecastChart.astro';
+import CancellationChart from '../components/CancellationChart.astro';
 import FlightVolumeStreamgraph from '../components/FlightVolumeStreamgraph.astro';
 import SlopeChart from '../components/SlopeChart.astro';
 import AirlineBreakdown from '../components/AirlineBreakdown.astro';
@@ -37,6 +38,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
       <li><a href="#delays">When delays happen</a></li>
       <li><a href="#anomalous">Misbehaving routes</a></li>
       <li><a href="#forecast">Forecasts</a></li>
+      <li><a href="#cancellations">Cancellations</a></li>
       <li><a href="#limitations">Limitations</a></li>
     </ol>
   </nav>
@@ -304,7 +306,38 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     </div>
   </section>
 
-  <!-- ── Section 6: Limitations ────────────────────────────────── -->
+  <!-- ── Section 6: Cancellations ────────────────────────────────── -->
+  <section id="cancellations">
+    <div class="prose">
+      <h2>Cancellations</h2>
+      <p>
+        A delayed flight eventually lands. A cancelled one doesn't, and the disruption ripples
+        outward through rebookings, missed connections, and stranded passengers. Cancellation
+        rates across all three airports followed a similar arc: a sharp COVID spike in 2020,
+        a second spike in 2022 as carriers tried to restore full schedules faster than their
+        operations could support, and a return to near-normal by 2023. The 2022 peak was worst
+        at DCA, which hit 4.0%, compared to 3.6% at BWI and 2.4% at IAD.
+      </p>
+      <p>
+        DCA did not hold that recovery. In 2025 its cancellation rate climbed back to 3.9%,
+        almost entirely driven by PSA Airlines, the regional carrier that operates American Eagle
+        flights out of Reagan. PSA's cancellation rate at DCA reached 6.6% that year, up from
+        roughly 1.5% in 2023 and 2024. Republic Airways, which operates regional flights for
+        United and American, also worsened. IAD and BWI stayed under 1.4% through the same period.
+      </p>
+      <p>
+        Across all years and airports, Fall is the safest season to fly without a cancellation.
+        Spring and Winter are the riskiest, with Spring averaging just over 3% across the three
+        airports due to thunderstorm season. The seasonal gap is largest at DCA, which sits in
+        a narrower flight corridor and is more affected by weather-driven ground stops.
+      </p>
+    </div>
+    <div class="section-chart prose">
+      <CancellationChart />
+    </div>
+  </section>
+
+  <!-- ── Section 7: Limitations ────────────────────────────────── -->
   <section id="limitations">
     <div class="prose">
       <h2>Limitations</h2>
