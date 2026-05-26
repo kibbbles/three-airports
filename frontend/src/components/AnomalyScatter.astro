@@ -57,13 +57,57 @@ const AP_COLOR: Record<string, string> = {
   BWI: '#22c55e',
 };
 
+// Build one averaged line per persistent route (flagged in ≥2 years).
+// Each line is the mean of that route's anomalous-year feature values.
+interface AvgRow {
+  origin: string;
+  dest: string;
+  years_flagged: number;
+  late_rate: number;
+  mean_delay: number;
+  nas_share: number;
+  cancel_rate: number;
+}
+
+const yearCounts = new Map<string, number>();
+const featureSums = new Map<string, { late_rate: number; mean_delay: number; nas_share: number; cancel_rate: number }>();
+const originMap   = new Map<string, string>();
+
+for (const d of raw) {
+  if (d.is_anomalous !== 1) continue;
+  const k = `${d.origin}|${d.dest}`;
+  yearCounts.set(k, (yearCounts.get(k) ?? 0) + 1);
+  originMap.set(k, d.origin);
+  const s = featureSums.get(k) ?? { late_rate: 0, mean_delay: 0, nas_share: 0, cancel_rate: 0 };
+  s.late_rate   += d.late_rate;
+  s.mean_delay  += d.mean_delay;
+  s.nas_share   += d.nas_share;
+  s.cancel_rate += d.cancel_rate;
+  featureSums.set(k, s);
+}
+
+const persistentRoutes: AvgRow[] = [];
+for (const [k, n] of yearCounts.entries()) {
+  if (n < 2) continue;
+  const s = featureSums.get(k)!;
+  const [origin, dest] = k.split('|');
+  persistentRoutes.push({
+    origin, dest,
+    years_flagged: n,
+    late_rate:   s.late_rate   / n,
+    mean_delay:  s.mean_delay  / n,
+    nas_share:   s.nas_share   / n,
+    cancel_rate: s.cancel_rate / n,
+  });
+}
+
 const tt = document.getElementById('pchart-tooltip')!;
 
 function draw() {
   container.innerHTML = '';
   const W  = container.clientWidth || 680;
   const H  = Math.round(W * 0.58);
-  const margin = { top: 48, right: 24, bottom: 16, left: 52 };
+  const margin = { top: 48, right: 72, bottom: 16, left: 52 };
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -74,6 +118,7 @@ function draw() {
 
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
+  // Scales built on the full raw data so axes represent actual range
   const yScales = FEATURES.map(f =>
     scaleLinear()
       .domain(extent(raw, d => d[f.key] as number) as [number, number])
@@ -83,58 +128,50 @@ function draw() {
 
   const xPos = FEATURES.map((_, i) => (iW / (FEATURES.length - 1)) * i);
 
-  function rowPath(d: Row): string {
-    const pts = FEATURES.map((f, i) => [xPos[i], yScales[i](d[f.key] as number)] as [number, number]);
+  function rowPath(d: Record<string, number>): string {
+    const pts = FEATURES.map((f, i) => [xPos[i], yScales[i](d[f.key as string] as number)] as [number, number]);
     return line()(pts) ?? '';
   }
 
-  const normal    = raw.filter(d => d.is_anomalous === 0);
-  const anomalous = raw.filter(d => d.is_anomalous === 1);
-
-  // Normal lines
+  // Gray background: all normal route-year observations
+  const normal = raw.filter(d => d.is_anomalous === 0);
   g.append('g').attr('class', 'lines-normal')
     .selectAll<SVGPathElement, Row>('path')
     .data(normal)
     .join('path')
-    .attr('d', rowPath)
+    .attr('d', d => rowPath(d as unknown as Record<string, number>))
     .attr('fill', 'none')
     .attr('stroke', '#3a3d4a')
     .attr('stroke-width', 0.8)
     .attr('stroke-opacity', 0.4);
 
-  // Anomalous lines
-  const anomPaths = g.append('g').attr('class', 'lines-anomaly')
-    .selectAll<SVGPathElement, Row>('path')
-    .data(anomalous)
-    .join('path')
-    .attr('d', rowPath)
-    .attr('fill', 'none')
-    .attr('stroke', d => AP_COLOR[d.origin] ?? '#fff')
-    .attr('stroke-width', 1.4)
-    .attr('stroke-opacity', 0.55);
-
-  // Hover label (single, reused)
+  // One colored line per persistent route (averaged over anomalous years)
   const lastIdx  = FEATURES.length - 1;
   const lastFeat = FEATURES[lastIdx];
 
   const hoverLabel = g.append('text')
-    .attr('class', 'hover-label')
-    .attr('x', xPos[lastIdx] + 8)
     .attr('dy', '0.35em')
-    .attr('font-size', '11.5px')
+    .attr('font-size', '11px')
     .attr('font-weight', '600')
-    .attr('opacity', 0)
-    .text('');
+    .attr('opacity', 0);
 
-  anomPaths
-    .on('mousemove', function(event: MouseEvent, d: Row) {
+  const anomPaths = g.append('g').attr('class', 'lines-anomaly')
+    .selectAll<SVGPathElement, AvgRow>('path')
+    .data(persistentRoutes)
+    .join('path')
+    .attr('d', d => rowPath(d as unknown as Record<string, number>))
+    .attr('fill', 'none')
+    .attr('stroke', d => AP_COLOR[d.origin] ?? '#fff')
+    .attr('stroke-width', 1.5)
+    .attr('stroke-opacity', 0.6)
+    .on('mousemove', function(event: MouseEvent, d: AvgRow) {
       anomPaths.attr('stroke-opacity', 0.08).attr('stroke-width', 0.8);
       select(this).attr('stroke-opacity', 1).attr('stroke-width', 2.5).raise();
       hoverLabel.raise();
 
-      const endY = yScales[lastIdx](d[lastFeat.key] as number);
       hoverLabel
-        .attr('y', endY)
+        .attr('x', xPos[lastIdx] + 8)
+        .attr('y', yScales[lastIdx](d[lastFeat.key as keyof AvgRow] as number))
         .attr('fill', AP_COLOR[d.origin] ?? '#fff')
         .attr('opacity', 1)
         .text(`${d.origin}→${d.dest}`);
@@ -143,12 +180,13 @@ function draw() {
       tt.style.left = (event.pageX + 14) + 'px';
       tt.style.top  = (event.pageY - 28) + 'px';
       tt.innerHTML = `
-        <strong>${d.origin} &rarr; ${d.dest}</strong> <span class="tt-year">${d.year}</span><br>
-        ${FEATURES.map(f => `${f.label}: <strong>${f.fmt(d[f.key] as number)}</strong>`).join('<br>')}
+        <strong>${d.origin} &rarr; ${d.dest}</strong>
+        <span class="tt-year">${d.years_flagged} of 5 yrs</span><br>
+        ${FEATURES.map(f => `${f.label}: <strong>${f.fmt(d[f.key as keyof AvgRow] as number)}</strong>`).join('<br>')}
       `;
     })
     .on('mouseleave', () => {
-      anomPaths.attr('stroke-opacity', 0.55).attr('stroke-width', 1.4);
+      anomPaths.attr('stroke-opacity', 0.6).attr('stroke-width', 1.5);
       hoverLabel.attr('opacity', 0);
       tt.style.display = 'none';
     });
@@ -172,8 +210,8 @@ function draw() {
     .call(s => s.selectAll('text')
       .attr('fill', '#888')
       .attr('font-size', '10px')
-      .attr('x', isFirst ? -6 : (isLast ? 6 : 0))
-      .attr('text-anchor', isFirst ? 'end' : (isLast ? 'start' : 'middle'))
+      .attr('x', isFirst ? -6 : (isLast ? -6 : 0))
+      .attr('text-anchor', isFirst ? 'end' : (isLast ? 'end' : 'middle'))
     )
     .call(s => s.selectAll('line').attr('stroke', '#555'));
 
@@ -181,7 +219,7 @@ function draw() {
     axisG.append('text')
       .attr('y', -22)
       .attr('text-anchor', isFirst ? 'start' : (isLast ? 'end' : 'middle'))
-      .attr('x', isFirst ? -4 : (isLast ? 4 : 0))
+      .attr('x', isFirst ? -4 : (isLast ? -4 : 0))
       .attr('fill', '#bbb')
       .attr('font-size', '11px')
       .text(f.label);
