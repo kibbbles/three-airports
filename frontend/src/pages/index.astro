@@ -277,14 +277,26 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     <div class="prose">
       <h2>What the models say</h2>
       <p>
-        Prophet models were fitted on monthly late rates from 2015–2021 and
-        projected through 2026. The dashed line is the forecast; solid lines are actuals.
-        The shaded band is the 95% confidence interval.
+        To put recent performance in context, I fitted a time series model on each airport's
+        monthly late-arrival rate from 2015 through 2021, then let it project forward through
+        2026. The forecast answers a specific question: given how each airport performed before
+        and during the pandemic, what would a normal recovery have looked like? The dashed line
+        is that projection; solid lines are what actually happened. The shaded band is the 95%
+        confidence interval around the forecast.
       </p>
       <p>
-        IAD and DCA are tracking close to forecast. BWI is the outlier: it spiked
-        well above its expected trend starting in 2022 and has only partially recovered,
-        averaging +4 percentage points above forecast through 2024.
+        BWI tells the clearest story. In 2022 its late rate landed 8.9 percentage points above
+        forecast, the sharpest deviation of any airport in any year. From there it narrowed
+        consistently: 5.9pp above in 2023, 4.8pp in 2024, 2.7pp in 2025. By 2026 BWI crossed
+        below its own forecast line for the first time, coming in 2.7pp better than predicted.
+        The recovery was real and gradual rather than a single correction.
+      </p>
+      <p>
+        DCA's trajectory is less obvious. It ran 4.5 percentage points below forecast in 2023
+        and 3.0pp below in 2024, meaning it was performing better than its own history suggested
+        it should. That advantage reversed in 2025, when it came in 3.4pp above forecast before
+        settling back to near-forecast in 2026. IAD tracked closest to its projection throughout,
+        with a brief 2.3pp spike in 2025 that unwound by 2026.
       </p>
     </div>
     <div class="section-chart prose">
