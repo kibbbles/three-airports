@@ -18,7 +18,7 @@ No React, no UI framework, no iframes.
 
 ---
 
-## Current Section Order
+## Section Order
 
 | # | Section | Component | Status |
 |---|---|---|---|
@@ -28,11 +28,15 @@ No React, no UI framework, no iframes.
 | 2 | Volume over time | `FlightVolumeStreamgraph.astro` | ✅ shipped |
 | 3 | Explore 2.7M flights | `CrossfilterDash.astro` | ✅ shipped |
 | 4 | Fare comparison | `FareComparison.astro` | ✅ shipped |
-| 4b | **Airline breakdown** | `AirlineBreakdown.astro` | 🔲 next |
+| 4b | Airline breakdown | `AirlineBreakdown.astro` | ✅ shipped |
 | 5 | When delays happen | `SlopeChart.astro` | ✅ shipped |
 | 6 | Misbehaving routes | `AnomalyList.astro` | ✅ shipped |
 | 7 | Forecasts | `ForecastChart.astro` | ✅ shipped |
-| 8 | Limitations | inline in `index.astro` | ✅ shipped |
+| 8 | Cancellations | `CancellationChart.astro` | ✅ shipped |
+| 9 | Weather and delays | `WeatherDelays.astro` | 🔲 planned |
+| 10 | Carrier on-time | `CarrierOnTime.astro` | 🔲 planned |
+| 11 | Conclusion | inline in `index.astro` | 🔲 planned |
+| 12 | Limitations | inline in `index.astro` | ✅ shipped (move to end) |
 
 ---
 
@@ -72,6 +76,13 @@ No React, no UI framework, no iframes.
 - Hover tooltip shows exact `X% → Y%` for all three airports
 - Data: `heatmaps.json`
 
+### `AirlineBreakdown.astro`
+- Three donut charts — carrier market share by passenger volume per airport (top 6 + Other)
+- Three horizontal bar charts — median one-way fare per carrier, shared x-axis across airports
+- Lollipop/beeswarm — within-carrier fare premium vs BWI, two tracks: IAD (blue) and DCA (orange)
+- Hub premium analysis powered by `hub_premium.json` (within-carrier, same-route IAD/DCA vs BWI)
+- Data: `carrier_breakdown.json`, `hub_premium.json`
+
 ### `AnomalyList.astro`
 - Ranked list of 87 persistently anomalous routes (Isolation Forest, post-2022)
 - Bar shows years flagged out of 5
@@ -80,50 +91,6 @@ No React, no UI framework, no iframes.
 ### `ForecastChart.astro`
 - Prophet forecast vs actuals per airport, shaded 95% CI
 - Data: `forecasts.json`
-
----
-
-## Next: Airline Breakdown Section (4b)
-
-**Narrative framing:** A separate section right after fare comparison. Opens with a
-transition paragraph ("now that we know *what* the fares look like, here's *who's*
-flying out of each airport and what they charge"). Presents correlation between carrier
-mix and fare levels without claiming causation — United dominating IAD at 69%,
-Southwest owning BWI at 61%, American leading DCA at 44% is interesting context,
-not a proof.
-
-**Charts:**
-1. **Three pie/donut charts** — carrier market share by passenger volume per airport
-   (top 6 carriers + Other). Colored by carrier, not airport.
-2. **Grouped horizontal bar** — median fare per carrier, grouped by airport.
-   Shows e.g. United at IAD vs Southwest at BWI on the same axis.
-   Based on notebook `04_eda_db1b.ipynb` Section 7.
-
-**Data export needed:** `carrier_breakdown.json`
-- Script: `scripts/run_carrier_breakdown.py`
-- Source: `data/processed/db1b_dmv.parquet`
-- Schema:
-  ```json
-  {
-    "carrier_names": { "WN": "Southwest", "UA": "United", ... },
-    "carrier_colors": { "WN": "#ffb81c", "UA": "#002244", ... },
-    "share": {
-      "IAD": [{ "carrier": "UA", "pax": 2720553, "pct": 0.689 }, ...],
-      "DCA": [...],
-      "BWI": [...]
-    },
-    "fares": {
-      "IAD": [{ "carrier": "UA", "name": "United", "median_fare": 265 }, ...],
-      "DCA": [...],
-      "BWI": [...]
-    }
-  }
-  ```
-
-**Component:** `AirlineBreakdown.astro`
-- Client-side D3, same ResizeObserver pattern as other components
-- Pie charts: `d3.pie` + `d3.arc`, one SVG per airport, 2×3 grid or row of 3
-- Bar chart: horizontal bars grouped by airport, sorted by fare descending
 
 ---
 
@@ -140,7 +107,8 @@ not a proof.
 | `fare_comparison.json` | Fare comparison charts |
 | `anomalies.json` | Anomaly list |
 | `forecasts.json` | Forecast chart |
-| `carrier_breakdown.json` | **Airline breakdown** (to build) |
+| `carrier_breakdown.json` | Airline breakdown (donut + fare bars) |
+| `hub_premium.json` | Airline breakdown (lollipop / beeswarm) |
 
 ---
 
@@ -174,4 +142,4 @@ Font: avoid Inter — use a less common, more distinctive choice.
 
 ## TOC Anchor IDs
 
-`intro` · `volume` · `explore` · `fares` · `airlines` *(to add)* · `delays` · `anomalous` · `forecast` · `limitations`
+`intro` · `volume` · `explore` · `fares` · `airlines` · `delays` · `anomalous` · `forecast` · `limitations`
