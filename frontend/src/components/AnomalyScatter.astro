@@ -57,25 +57,13 @@ const AP_COLOR: Record<string, string> = {
   BWI: '#22c55e',
 };
 
-// Routes flagged all 5 post-2022 years — get unique origin+dest pairs
-const yearCounts = new Map<string, number>();
-for (const d of raw) {
-  if (d.is_anomalous === 1) {
-    const k = `${d.origin}|${d.dest}`;
-    yearCounts.set(k, (yearCounts.get(k) ?? 0) + 1);
-  }
-}
-const ALWAYS_BAD = new Set<string>(
-  [...yearCounts.entries()].filter(([, n]) => n >= 5).map(([k]) => k)
-);
-
 const tt = document.getElementById('pchart-tooltip')!;
 
 function draw() {
   container.innerHTML = '';
   const W  = container.clientWidth || 680;
   const H  = Math.round(W * 0.58);
-  const margin = { top: 48, right: 90, bottom: 16, left: 16 };
+  const margin = { top: 48, right: 24, bottom: 16, left: 52 };
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -125,34 +113,10 @@ function draw() {
     .attr('stroke-width', 1.4)
     .attr('stroke-opacity', 0.55);
 
-  // Persistent labels (5/5 routes) — drawn once, at the right edge
+  // Hover label (single, reused)
   const lastIdx  = FEATURES.length - 1;
   const lastFeat = FEATURES[lastIdx];
-  const labelG   = g.append('g').attr('class', 'persistent-labels');
 
-  // Deduplicate: one label per origin+dest (use most recent year's position)
-  const seenAlways = new Map<string, Row>();
-  for (const d of anomalous) {
-    const k = `${d.origin}|${d.dest}`;
-    if (ALWAYS_BAD.has(k)) {
-      if (!seenAlways.has(k) || d.year > (seenAlways.get(k)!.year)) {
-        seenAlways.set(k, d);
-      }
-    }
-  }
-
-  labelG.selectAll<SVGTextElement, Row>('text')
-    .data([...seenAlways.values()])
-    .join('text')
-    .attr('x', xPos[lastIdx] + 8)
-    .attr('y', d => yScales[lastIdx](d[lastFeat.key] as number))
-    .attr('dy', '0.35em')
-    .attr('fill', d => AP_COLOR[d.origin] ?? '#fff')
-    .attr('font-size', '10px')
-    .attr('opacity', 0.85)
-    .text(d => `${d.origin}→${d.dest}`);
-
-  // Hover label (single, reused)
   const hoverLabel = g.append('text')
     .attr('class', 'hover-label')
     .attr('x', xPos[lastIdx] + 8)
