@@ -235,12 +235,16 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
         red-eye is going to have different base delay rates than a regional hop.
       </p>
       <p>
-        The chart below shows all 838 route-year observations from 2022 onward as parallel lines,
-        one per route-year, connecting its value on each of the four axes from left to right. Gray
-        lines are within normal range for that route. Colored lines deviated from their own
-        pre-pandemic track record on at least one dimension. Hover any colored line to see the
-        route and its exact values. A route that looks unremarkable on late-arrival rate may still
-        stand out because its cancellation rate or NAS delay share shifted after 2022.
+        Showing all four features at once requires a different kind of chart. A scatter plot can
+        only put two dimensions on its axes, which means a route anomalous primarily because its
+        cancellation rate spiked would blend right in with the normal routes on a late-arrival
+        versus delay plot. A parallel coordinates chart solves this by giving each feature its own
+        vertical axis and drawing each route-year as a line that passes through all four. Gray
+        lines are within normal range for that route. Colored lines deviated on at least one
+        dimension. The shape of a line tells you where the deviation is: a sharp dip or spike at
+        one axis is the feature driving that route's anomaly. The nine routes flagged every year
+        since 2022 are labeled at the right edge. Hover any colored line to see the route name
+        and exact values on all four axes.
       </p>
     </div>
     <div class="section-chart prose">

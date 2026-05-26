@@ -45,10 +45,10 @@ const container = document.getElementById('anomaly-pchart')!;
 const raw: Row[] = JSON.parse(container.dataset.scatter!);
 
 const FEATURES: Feature[] = [
-  { key: 'late_rate',   label: 'Late-arrival rate', fmt: v => `${(v*100).toFixed(1)}%`   },
-  { key: 'mean_delay',  label: 'Mean delay',         fmt: v => `+${v.toFixed(0)} min`     },
-  { key: 'nas_share',   label: 'NAS delay share',    fmt: v => `${(v*100).toFixed(1)}%`   },
-  { key: 'cancel_rate', label: 'Cancellation rate',  fmt: v => `${(v*100).toFixed(1)}%`   },
+  { key: 'late_rate',   label: 'Late-arrival rate', fmt: v => `${(v*100).toFixed(1)}%`  },
+  { key: 'mean_delay',  label: 'Mean delay',         fmt: v => `+${v.toFixed(0)} min`    },
+  { key: 'nas_share',   label: 'NAS delay share',    fmt: v => `${(v*100).toFixed(1)}%`  },
+  { key: 'cancel_rate', label: 'Cancel rate',        fmt: v => `${(v*100).toFixed(1)}%`  },
 ];
 
 const AP_COLOR: Record<string, string> = {
@@ -57,13 +57,25 @@ const AP_COLOR: Record<string, string> = {
   BWI: '#22c55e',
 };
 
+// Routes flagged all 5 post-2022 years — get unique origin+dest pairs
+const yearCounts = new Map<string, number>();
+for (const d of raw) {
+  if (d.is_anomalous === 1) {
+    const k = `${d.origin}|${d.dest}`;
+    yearCounts.set(k, (yearCounts.get(k) ?? 0) + 1);
+  }
+}
+const ALWAYS_BAD = new Set<string>(
+  [...yearCounts.entries()].filter(([, n]) => n >= 5).map(([k]) => k)
+);
+
 const tt = document.getElementById('pchart-tooltip')!;
 
 function draw() {
   container.innerHTML = '';
   const W  = container.clientWidth || 680;
-  const H  = Math.round(W * 0.56);
-  const margin = { top: 40, right: 20, bottom: 20, left: 20 };
+  const H  = Math.round(W * 0.58);
+  const margin = { top: 48, right: 90, bottom: 16, left: 16 };
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -74,7 +86,6 @@ function draw() {
 
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-  // One y-scale per feature
   const yScales = FEATURES.map(f =>
     scaleLinear()
       .domain(extent(raw, d => d[f.key] as number) as [number, number])
@@ -82,10 +93,8 @@ function draw() {
       .nice()
   );
 
-  // Evenly spaced x positions for each axis
   const xPos = FEATURES.map((_, i) => (iW / (FEATURES.length - 1)) * i);
 
-  // Path generator for a single row
   function rowPath(d: Row): string {
     const pts = FEATURES.map((f, i) => [xPos[i], yScales[i](d[f.key] as number)] as [number, number]);
     return line()(pts) ?? '';
@@ -94,7 +103,7 @@ function draw() {
   const normal    = raw.filter(d => d.is_anomalous === 0);
   const anomalous = raw.filter(d => d.is_anomalous === 1);
 
-  // Normal lines (behind, very faint)
+  // Normal lines
   g.append('g').attr('class', 'lines-normal')
     .selectAll<SVGPathElement, Row>('path')
     .data(normal)
@@ -105,7 +114,7 @@ function draw() {
     .attr('stroke-width', 0.8)
     .attr('stroke-opacity', 0.4);
 
-  // Anomalous lines (colored, interactive)
+  // Anomalous lines
   const anomPaths = g.append('g').attr('class', 'lines-anomaly')
     .selectAll<SVGPathElement, Row>('path')
     .data(anomalous)
@@ -114,14 +123,57 @@ function draw() {
     .attr('fill', 'none')
     .attr('stroke', d => AP_COLOR[d.origin] ?? '#fff')
     .attr('stroke-width', 1.4)
-    .attr('stroke-opacity', 0.55)
+    .attr('stroke-opacity', 0.55);
+
+  // Persistent labels (5/5 routes) — drawn once, at the right edge
+  const lastIdx  = FEATURES.length - 1;
+  const lastFeat = FEATURES[lastIdx];
+  const labelG   = g.append('g').attr('class', 'persistent-labels');
+
+  // Deduplicate: one label per origin+dest (use most recent year's position)
+  const seenAlways = new Map<string, Row>();
+  for (const d of anomalous) {
+    const k = `${d.origin}|${d.dest}`;
+    if (ALWAYS_BAD.has(k)) {
+      if (!seenAlways.has(k) || d.year > (seenAlways.get(k)!.year)) {
+        seenAlways.set(k, d);
+      }
+    }
+  }
+
+  labelG.selectAll<SVGTextElement, Row>('text')
+    .data([...seenAlways.values()])
+    .join('text')
+    .attr('x', xPos[lastIdx] + 8)
+    .attr('y', d => yScales[lastIdx](d[lastFeat.key] as number))
+    .attr('dy', '0.35em')
+    .attr('fill', d => AP_COLOR[d.origin] ?? '#fff')
+    .attr('font-size', '10px')
+    .attr('opacity', 0.85)
+    .text(d => `${d.origin}→${d.dest}`);
+
+  // Hover label (single, reused)
+  const hoverLabel = g.append('text')
+    .attr('class', 'hover-label')
+    .attr('x', xPos[lastIdx] + 8)
+    .attr('dy', '0.35em')
+    .attr('font-size', '11.5px')
+    .attr('font-weight', '600')
+    .attr('opacity', 0)
+    .text('');
+
+  anomPaths
     .on('mousemove', function(event: MouseEvent, d: Row) {
-      // Highlight this line, dim others
-      anomPaths.attr('stroke-opacity', 0.1).attr('stroke-width', 0.8);
-      select(this)
-        .attr('stroke-opacity', 1)
-        .attr('stroke-width', 2.5)
-        .raise();
+      anomPaths.attr('stroke-opacity', 0.08).attr('stroke-width', 0.8);
+      select(this).attr('stroke-opacity', 1).attr('stroke-width', 2.5).raise();
+      hoverLabel.raise();
+
+      const endY = yScales[lastIdx](d[lastFeat.key] as number);
+      hoverLabel
+        .attr('y', endY)
+        .attr('fill', AP_COLOR[d.origin] ?? '#fff')
+        .attr('opacity', 1)
+        .text(`${d.origin}→${d.dest}`);
 
       tt.style.display = 'block';
       tt.style.left = (event.pageX + 14) + 'px';
@@ -133,19 +185,21 @@ function draw() {
     })
     .on('mouseleave', () => {
       anomPaths.attr('stroke-opacity', 0.55).attr('stroke-width', 1.4);
+      hoverLabel.attr('opacity', 0);
       tt.style.display = 'none';
     });
 
-  // Axis lines + ticks
+  // Axes
   FEATURES.forEach((f, i) => {
     const axisG = g.append('g').attr('transform', `translate(${xPos[i]},0)`);
 
-    // Vertical axis line
     axisG.append('line')
       .attr('y1', 0).attr('y2', iH)
-      .attr('stroke', '#444').attr('stroke-width', 1);
+      .attr('stroke', '#555').attr('stroke-width', 1);
 
-    // Ticks
+    const isFirst = i === 0;
+    const isLast  = i === FEATURES.length - 1;
+
     axisG.call(
       axisLeft(yScales[i]).ticks(4)
         .tickFormat((v: NumberValue) => f.fmt(+v))
@@ -154,16 +208,17 @@ function draw() {
     .call(s => s.selectAll('text')
       .attr('fill', '#888')
       .attr('font-size', '10px')
-      .attr('x', i === 0 ? -6 : (i === FEATURES.length - 1 ? 6 : 0))
-      .attr('text-anchor', i === 0 ? 'end' : (i === FEATURES.length - 1 ? 'start' : 'middle'))
+      .attr('x', isFirst ? -6 : (isLast ? 6 : 0))
+      .attr('text-anchor', isFirst ? 'end' : (isLast ? 'start' : 'middle'))
     )
-    .call(s => s.selectAll('line').attr('stroke', '#444'));
+    .call(s => s.selectAll('line').attr('stroke', '#555'));
 
-    // Axis label at top
+    // Axis label — first axis right-aligned, last left-aligned, middle centered
     axisG.append('text')
-      .attr('y', -14)
-      .attr('text-anchor', 'middle')
-      .attr('fill', '#aaa')
+      .attr('y', -22)
+      .attr('text-anchor', isFirst ? 'start' : (isLast ? 'end' : 'middle'))
+      .attr('x', isFirst ? -4 : (isLast ? 4 : 0))
+      .attr('fill', '#bbb')
       .attr('font-size', '11px')
       .text(f.label);
   });
@@ -181,6 +236,10 @@ window.addEventListener('resize', () => draw());
   #anomaly-pchart svg {
     display: block;
     width: 100%;
+    overflow: visible;
+  }
+
+  #anomaly-pchart {
     overflow: visible;
   }
 
