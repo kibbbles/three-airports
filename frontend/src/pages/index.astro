@@ -313,8 +313,9 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     <div class="prose">
       <h2>Cancellations</h2>
       <p>
-        A delayed flight eventually lands. A cancelled one doesn't, and the disruption ripples
-        outward through rebookings, missed connections, and stranded passengers. Cancellation
+        Getting cancelled is a different kind of bad. The flight doesn't just run late — it
+        disappears, and passengers are left chasing rebookings, blown connections, and in the
+        worst cases, a night in the terminal. Cancellation
         rates across all three airports followed a similar arc: a sharp COVID spike in 2020,
         a second spike in 2022 as carriers tried to restore full schedules faster than their
         operations could support, and a return to near-normal by 2023. The 2022 peak was worst
@@ -334,7 +335,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
         a narrower flight corridor and is more affected by weather-driven ground stops.
       </p>
     </div>
-    <div class="section-chart prose">
+    <div class="section-chart full-bleed">
       <CancellationChart />
     </div>
   </section>
