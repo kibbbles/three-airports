@@ -7,6 +7,7 @@ import AnomalyList from '../components/AnomalyList.astro';
 import AnomalyScatter from '../components/AnomalyScatter.astro';
 import ForecastChart from '../components/ForecastChart.astro';
 import CancellationChart from '../components/CancellationChart.astro';
+import WeatherDelays from '../components/WeatherDelays.astro';
 import FlightVolumeStreamgraph from '../components/FlightVolumeStreamgraph.astro';
 import SlopeChart from '../components/SlopeChart.astro';
 import AirlineBreakdown from '../components/AirlineBreakdown.astro';
@@ -39,6 +40,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
       <li><a href="#anomalous">Misbehaving routes</a></li>
       <li><a href="#forecast">Forecasts</a></li>
       <li><a href="#cancellations">Cancellations</a></li>
+      <li><a href="#weather">Weather and delays</a></li>
       <li><a href="#limitations">Limitations</a></li>
     </ol>
   </nav>
@@ -337,7 +339,39 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     </div>
   </section>
 
-  <!-- ── Section 7: Limitations ────────────────────────────────── -->
+  <!-- ── Section 7: Weather and delays ───────────────────────────── -->
+  <section id="weather">
+    <div class="prose">
+      <h2>Weather is not the main story</h2>
+      <p>
+        The seasonal pattern in cancellations raises an obvious question: how much of this is
+        actually weather? Spring and Winter are the worst seasons, and storms are the intuitive
+        explanation. But looking at where delay minutes actually come from tells a different story.
+      </p>
+      <p>
+        Each square below represents one percent of an airport's total delay minutes since 2015.
+        Weather accounts for 9% at IAD, 5% at DCA, and just 4% at BWI. The dominant causes are
+        cascading delays, where a late inbound aircraft makes the next flight late, and carrier
+        operations, covering crew, maintenance, and scheduling failures. Together those two
+        categories account for two thirds to three quarters of all delay time at every airport.
+        Air traffic control, which includes weather-related ground stops and traffic management,
+        adds another fifth. Pure weather delay is the smallest named cause in the dataset.
+      </p>
+      <p>
+        That does not mean weather is irrelevant. The ridgeline chart below shows the distribution
+        of daily late-arrival rates by airport and season. Each ridge is one airport's spread of
+        outcomes across all days in that season from 2015 through 2025. Fall's ridges sit low and
+        narrow: most days are fine and the bad days are not that bad. Winter and Spring ridges
+        have longer right tails, meaning a larger share of truly terrible days. Weather does not
+        cause most delays, but it does determine how bad the worst days get.
+      </p>
+    </div>
+    <div class="section-chart prose">
+      <WeatherDelays />
+    </div>
+  </section>
+
+  <!-- ── Section 8: Limitations ────────────────────────────────── -->
   <section id="limitations">
     <div class="prose">
       <h2>Limitations</h2>

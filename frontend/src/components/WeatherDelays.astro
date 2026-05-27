@@ -1,0 +1,296 @@
+---
+import rawData from '@data/weather_delays.json';
+const dataJSON = JSON.stringify(rawData);
+---
+
+<div id="weather-root" data-weather={dataJSON} class="weather-wrap">
+  <div class="waffle-grid" id="waffle-grid"></div>
+  <div class="waffle-legend" id="waffle-legend"></div>
+  <h3 class="sub-head">Daily late-arrival rate by season</h3>
+  <div id="ridgeline-chart"></div>
+</div>
+
+<div id="weather-tooltip" class="weather-tt" style="display:none"></div>
+
+<script>
+import { select, scaleLinear, area, curveBasis } from 'd3';
+
+interface WaffleRow { airport: string; cause: string; pct: number; minutes: number }
+interface RidgeRow  { airport: string; season: string; x: number; d: number }
+
+const root   = document.getElementById('weather-root')!;
+const parsed = JSON.parse(root.dataset.weather!);
+const waffleData: WaffleRow[] = parsed.waffle;
+const ridgeData:  RidgeRow[]  = parsed.ridgeline;
+
+const AIRPORTS = ['IAD','DCA','BWI'];
+const SEASONS  = ['Spring','Summer','Fall','Winter'];
+const AP_COLOR: Record<string,string> = { IAD:'#4e9af1', DCA:'#f97316', BWI:'#22c55e' };
+const CAUSES = [
+  { key:'Cascading delay',     color:'#6366f1' },
+  { key:'Carrier operations',  color:'#ec4899' },
+  { key:'Air traffic control', color:'#f59e0b' },
+  { key:'Weather',             color:'#38bdf8' },
+  { key:'Security',            color:'#6b7280' },
+];
+const CAUSE_COLOR = Object.fromEntries(CAUSES.map(c => [c.key, c.color]));
+
+const tt = document.getElementById('weather-tooltip')!;
+function showTt(ev: MouseEvent, html: string) {
+  tt.style.display = 'block';
+  tt.style.left = (ev.pageX + 14) + 'px';
+  tt.style.top  = (ev.pageY - 28) + 'px';
+  tt.innerHTML  = html;
+}
+function hideTt() { tt.style.display = 'none'; }
+
+// ── Waffle charts ──────────────────────────────────────────────────────
+function drawWaffles() {
+  const grid = document.getElementById('waffle-grid')!;
+  grid.innerHTML = '';
+
+  AIRPORTS.forEach(ap => {
+    const rows = waffleData.filter(d => d.airport === ap);
+
+    // Build exactly 100 colored squares
+    const squares: string[] = [];
+    rows.forEach(r => {
+      const n = Math.round(r.pct);
+      for (let i = 0; i < n; i++) squares.push(r.cause);
+    });
+    while (squares.length < 100) squares.push(squares[squares.length - 1]);
+    squares.length = 100;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'waffle-item';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'waffle-ap-label';
+    lbl.style.color = AP_COLOR[ap];
+    lbl.textContent = ap;
+    wrap.appendChild(lbl);
+
+    const inner = document.createElement('div');
+    inner.className = 'waffle-inner';
+
+    squares.forEach(cause => {
+      const sq = document.createElement('div');
+      sq.className = 'waffle-sq';
+      sq.style.background = CAUSE_COLOR[cause] ?? '#555';
+      const row = rows.find(r => r.cause === cause)!;
+      sq.addEventListener('mousemove', ev =>
+        showTt(ev as MouseEvent,
+          `<strong>${ap} — ${cause}</strong><br>${row.pct}% of delay minutes<br>${row.minutes.toLocaleString()} min total`));
+      sq.addEventListener('mouseleave', hideTt);
+      inner.appendChild(sq);
+    });
+
+    wrap.appendChild(inner);
+    grid.appendChild(wrap);
+  });
+
+  // Legend
+  const leg = document.getElementById('waffle-legend')!;
+  leg.innerHTML = '';
+  CAUSES.forEach(c => {
+    const item = document.createElement('span');
+    item.className = 'wleg-item';
+    item.innerHTML = `<span class="wleg-sq" style="background:${c.color}"></span>${c.key}`;
+    leg.appendChild(item);
+  });
+}
+
+// ── Ridgeline ──────────────────────────────────────────────────────────
+function drawRidgeline() {
+  const el = document.getElementById('ridgeline-chart')!;
+  el.innerHTML = '';
+
+  const W       = el.clientWidth || 680;
+  const rowH    = Math.max(28, Math.round(W * 0.075));
+  const overlap = 2.6;
+  const m       = { top: 16, right: 72, bottom: 44, left: 56 };
+  const iW      = W - m.left - m.right;
+
+  // rows: per airport, per season
+  type RowDef = { airport: string; season: string };
+  const rows: RowDef[] = [];
+  AIRPORTS.forEach(ap => SEASONS.forEach(s => rows.push({ airport: ap, season: s })));
+
+  const H = rows.length * rowH + m.top + m.bottom;
+  const svg = select(el).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = scaleLinear().domain([0, 0.8]).range([0, iW]);
+
+  // X axis
+  const axisY = rows.length * rowH;
+  g.append('line')
+    .attr('x1', 0).attr('x2', iW)
+    .attr('y1', axisY).attr('y2', axisY)
+    .attr('stroke', '#3a3d4a');
+
+  [0, 0.2, 0.4, 0.6, 0.8].forEach(v => {
+    g.append('line')
+      .attr('x1', x(v)).attr('x2', x(v))
+      .attr('y1', axisY).attr('y2', axisY + 5)
+      .attr('stroke', '#3a3d4a');
+    g.append('text')
+      .attr('x', x(v)).attr('y', axisY + 16)
+      .attr('text-anchor', 'middle')
+      .attr('fill', '#888').attr('font-size', '11px')
+      .text(`${Math.round(v * 100)}%`);
+  });
+  g.append('text')
+    .attr('x', iW / 2).attr('y', axisY + 32)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#555').attr('font-size', '11px')
+    .text('Share of that day\'s flights arriving late');
+
+  // Draw ridges
+  rows.forEach(({ airport, season }, ri) => {
+    const yBase  = (ri + 1) * rowH;
+    const pts    = ridgeData.filter(d => d.airport === airport && d.season === season);
+    if (!pts.length) return;
+
+    const yScale = scaleLinear().domain([0, 1]).range([0, -rowH * overlap]);
+
+    const rowG = g.append('g').attr('transform', `translate(0,${yBase})`);
+
+    // Fill
+    rowG.append('path')
+      .datum(pts)
+      .attr('fill', AP_COLOR[airport])
+      .attr('fill-opacity', 0.18)
+      .attr('d', area<RidgeRow>()
+        .x(d => x(d.x))
+        .y0(0)
+        .y1(d => yScale(d.d))
+        .curve(curveBasis)(pts) ?? '');
+
+    // Stroke along top
+    const linePts = pts.map(d => [x(d.x), yScale(d.d)] as [number,number]);
+    rowG.append('path')
+      .attr('fill', 'none')
+      .attr('stroke', AP_COLOR[airport])
+      .attr('stroke-width', 1.6)
+      .attr('stroke-opacity', 0.9)
+      .attr('d', 'M' + linePts.map(([px,py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join('L'));
+
+    // Baseline
+    rowG.append('line')
+      .attr('x1', 0).attr('x2', iW)
+      .attr('stroke', '#1e2030').attr('stroke-width', 1);
+
+    // Airport label (left, once per airport group)
+    if (ri % 4 === 0) {
+      g.append('text')
+        .attr('x', -8).attr('y', yBase - rowH * 1.8)
+        .attr('text-anchor', 'end').attr('dy', '0.35em')
+        .attr('fill', AP_COLOR[airport])
+        .attr('font-size', '12px').attr('font-weight', '600')
+        .text(airport);
+    }
+
+    // Season label (right side, once per season = IAD rows only)
+    if (airport === 'IAD') {
+      g.append('text')
+        .attr('x', iW + 8).attr('y', yBase - rowH * 0.4)
+        .attr('dy', '0.35em').attr('text-anchor', 'start')
+        .attr('fill', '#777').attr('font-size', '10px')
+        .text(season);
+    }
+  });
+}
+
+drawWaffles();
+drawRidgeline();
+window.addEventListener('resize', () => { drawWaffles(); drawRidgeline(); });
+</script>
+
+<style>
+  .weather-wrap { margin-top: 1.5rem; }
+
+  .waffle-grid {
+    display: flex;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+  }
+
+  .waffle-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .waffle-ap-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .waffle-inner {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 2px;
+    width: 160px;
+  }
+
+  .waffle-sq {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 1px;
+    cursor: default;
+  }
+  .waffle-sq:hover { opacity: 0.7; }
+
+  .waffle-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+    font-size: 0.8rem;
+  }
+  .wleg-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--muted);
+  }
+  .wleg-sq {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .sub-head {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  #ridgeline-chart svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .weather-tt {
+    position: fixed;
+    background: #1a1d27;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text);
+    pointer-events: none;
+    z-index: 100;
+    line-height: 1.7;
+    white-space: nowrap;
+  }
+</style>
