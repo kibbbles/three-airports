@@ -11,6 +11,7 @@ import WeatherDelays from '../components/WeatherDelays.astro';
 import FlightVolumeStreamgraph from '../components/FlightVolumeStreamgraph.astro';
 import SlopeChart from '../components/SlopeChart.astro';
 import AirlineBreakdown from '../components/AirlineBreakdown.astro';
+import CarrierOnTime from '../components/CarrierOnTime.astro';
 import summary from '@data/airport_summary.json';
 
 const airports = [
@@ -41,6 +42,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
       <li><a href="#forecast">Forecasts</a></li>
       <li><a href="#cancellations">Cancellations</a></li>
       <li><a href="#weather">Weather and delays</a></li>
+      <li><a href="#carrier-ontime">Carrier on-time</a></li>
       <li><a href="#limitations">Limitations</a></li>
     </ol>
   </nav>
@@ -372,6 +374,40 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     </div>
   </section>
 
+  <!-- ── Section 10: Carrier on-time ───────────────────────────── -->
+  <section id="carrier-ontime">
+    <div class="prose">
+      <h2>Which carrier should you pick?</h2>
+      <p>
+        Airport choice matters, but carrier choice matters too — and for most routes you have
+        both to make at once. Each dot below is one airport's late-arrival rate for that carrier,
+        covering all domestic departures from 2015 through early 2026. The spread of dots on a
+        single row shows how consistent a carrier is across airports. A wide spread means the
+        carrier runs meaningfully different operations depending on where you board.
+      </p>
+      <p>
+        Delta is the clear answer if reliability is the priority: 13.4% at IAD, 14.6% at DCA,
+        12.4% at BWI — best in the dataset and within two points of itself everywhere.
+        Frontier and PSA sit at the other end, but their problems are different.
+        Frontier is simply bad everywhere it flies here, worst at BWI (31.2%). PSA — which
+        operates American Eagle flights at DCA — has a 25.1% late rate at Reagan specifically,
+        but looks normal at its other airports (13% at BWI). That's not a carrier problem;
+        it's a DCA-specific one, consistent with the cancellation spike we saw earlier.
+      </p>
+      <p>
+        The hub penalty shows up for both Southwest and United. Southwest runs 6 percentage
+        points worse at its BWI hub (21.9%) than at IAD (15.6%), where it's a minor carrier
+        with less traffic to manage. United runs the same pattern in reverse: 18.0% late at
+        IAD versus 14.7% at BWI. Being dominant somewhere comes with a price in operational
+        complexity that shows up in the delay numbers. JetBlue is an exception to that rule —
+        it has no hub at any of the three airports and still manages to be mediocre everywhere.
+      </p>
+    </div>
+    <div class="section-chart full-bleed">
+      <CarrierOnTime />
+    </div>
+  </section>
+
   <!-- ── Section 8: Limitations ────────────────────────────────── -->
   <section id="limitations">
     <div class="prose">
@@ -385,7 +421,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     </div>
   </section>
 <script>
-  const TOOLTIP_IDS = ['fare-tooltip', 'fvs-tt', 'slope-tt', 'ab-tt'];
+  const TOOLTIP_IDS = ['fare-tooltip', 'fvs-tt', 'slope-tt', 'ab-tt', 'cot-tt'];
 
   function hideAll() {
     for (const id of TOOLTIP_IDS) {

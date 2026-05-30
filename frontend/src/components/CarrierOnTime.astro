@@ -1,0 +1,223 @@
+---
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<div id="cot-root" data-base={base}></div>
+<div id="cot-tt"></div>
+
+<script>
+import * as d3 from 'd3';
+
+const root = document.getElementById('cot-root') as HTMLElement;
+const base = root.dataset.base ?? '';
+
+type ApData = { flights: number; late_rate: number; median_delay: number; cancel_rate: number | null } | null;
+type Carrier = {
+  carrier: string;
+  name: string;
+  color: string;
+  airports: { IAD: ApData; DCA: ApData; BWI: ApData };
+  overall_late_rate: number;
+  total_flights: number;
+};
+
+const data: { carriers: Carrier[] } = await fetch(`${base}/data/carrier_ontime.json`).then(r => r.json());
+
+const AP_COLOR: Record<string, string> = { IAD: '#4e9af1', DCA: '#f97316', BWI: '#22c55e' };
+const AIRPORTS = ['IAD', 'DCA', 'BWI'] as const;
+
+const tt = document.getElementById('cot-tt') as HTMLElement;
+function posTT(x: number, y: number) {
+  tt.style.opacity = '1';
+  const tw = tt.offsetWidth, th = tt.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let lx = x + 14, ly = y - th / 2;
+  if (lx + tw > vw - 8) lx = x - tw - 14;
+  if (ly < 8) ly = 8;
+  if (ly + th > vh - 8) ly = vh - th - 8;
+  tt.style.left = `${lx}px`;
+  tt.style.top  = `${ly}px`;
+}
+const hideTT = () => { tt.style.opacity = '0'; };
+
+function draw() {
+  root.innerHTML = '';
+  const W = root.clientWidth;
+  if (W < 60) return;
+
+  const carriers = data.carriers;
+  const narrow   = W < 500;
+
+  const pad   = { t: 28, r: narrow ? 52 : 68, b: 36, l: narrow ? 90 : 110 };
+  const rowH  = 38;
+  const dotR  = 5.5;
+  const innerW = W - pad.l - pad.r;
+  const innerH = carriers.length * rowH;
+  const H      = innerH + pad.t + pad.b;
+
+  const xSc = d3.scaleLinear().domain([0, 0.36]).range([0, innerW]);
+
+  const svg = d3.select(root).append('svg').attr('width', W).attr('height', H);
+
+  // ── Airport legend ──────────────────────────────────────────────
+  const legG = svg.append('g').attr('transform', `translate(${pad.l}, 12)`);
+  let lx = 0;
+  AIRPORTS.forEach(ap => {
+    legG.append('circle').attr('cx', lx + 5).attr('cy', 5).attr('r', 5).attr('fill', AP_COLOR[ap]);
+    legG.append('text').attr('x', lx + 14).attr('y', 9).attr('fill', AP_COLOR[ap])
+      .attr('font-size', 11).text(ap);
+    lx += narrow ? 48 : 56;
+  });
+
+  const g = svg.append('g').attr('transform', `translate(${pad.l},${pad.t})`);
+
+  // ── Grid lines ──────────────────────────────────────────────────
+  [0.1, 0.2, 0.3].forEach(v => {
+    g.append('line')
+      .attr('x1', xSc(v)).attr('x2', xSc(v))
+      .attr('y1', 0).attr('y2', innerH)
+      .attr('stroke', '#1e2030').attr('stroke-width', 1);
+  });
+
+  // ── X axis ──────────────────────────────────────────────────────
+  g.append('g').attr('transform', `translate(0,${innerH})`)
+    .call(
+      d3.axisBottom(xSc)
+        .tickValues([0, 0.1, 0.2, 0.3])
+        .tickFormat((d: d3.NumberValue) => `${Math.round(+d * 100)}%`)
+        .tickSize(4)
+    )
+    .call((ax: any) => {
+      ax.select('.domain').remove();
+      ax.selectAll('.tick line').attr('stroke', '#2a2d3a');
+      ax.selectAll('text').attr('fill', '#555').attr('font-size', '10');
+    });
+
+  g.append('text')
+    .attr('x', xSc(0)).attr('y', innerH + 30)
+    .attr('fill', '#444').attr('font-size', 9.5).attr('letter-spacing', '.04em')
+    .text('Flights arriving 15+ min late');
+
+  // ── Per-carrier rows ────────────────────────────────────────────
+  carriers.forEach((c, i) => {
+    const cy = i * rowH + rowH / 2;
+
+    // Carrier name label
+    g.append('text')
+      .attr('x', -8).attr('y', cy)
+      .attr('text-anchor', 'end').attr('dominant-baseline', 'middle')
+      .attr('fill', c.color).attr('font-size', narrow ? 11 : 12).attr('font-weight', '600')
+      .text(c.name);
+
+    // Stripe
+    if (i % 2 === 0) {
+      g.append('rect')
+        .attr('x', 0).attr('y', i * rowH)
+        .attr('width', innerW).attr('height', rowH)
+        .attr('fill', 'rgba(255,255,255,0.015)');
+    }
+
+    // Collect present dots to draw the connecting line
+    const presentXs: number[] = [];
+    AIRPORTS.forEach(ap => {
+      const d = c.airports[ap];
+      if (d) presentXs.push(xSc(d.late_rate));
+    });
+
+    if (presentXs.length > 1) {
+      g.append('line')
+        .attr('x1', Math.min(...presentXs)).attr('x2', Math.max(...presentXs))
+        .attr('y1', cy).attr('y2', cy)
+        .attr('stroke', '#2a2d3a').attr('stroke-width', 1.5);
+    }
+
+    // Dots per airport
+    AIRPORTS.forEach(ap => {
+      const d = c.airports[ap];
+      if (!d) return;
+
+      const cx = xSc(d.late_rate);
+
+      g.append('circle')
+        .attr('cx', cx).attr('cy', cy)
+        .attr('r', dotR)
+        .attr('fill', AP_COLOR[ap])
+        .attr('stroke', '#0f1117').attr('stroke-width', 1.5)
+        .style('cursor', 'default')
+        .on('mousemove', (ev: MouseEvent) => {
+          tt.innerHTML = `
+            <div class="cot-tt-name">${c.name} — ${ap}</div>
+            <div class="cot-tt-row"><span>Arrived late</span><span>${(d.late_rate * 100).toFixed(1)}%</span></div>
+            <div class="cot-tt-row"><span>Median delay</span><span>${d.median_delay} min</span></div>
+            ${d.cancel_rate != null ? `<div class="cot-tt-row"><span>Cancelled</span><span>${(d.cancel_rate * 100).toFixed(1)}%</span></div>` : ''}
+            <div class="cot-tt-row cot-tt-vol"><span>${d.flights.toLocaleString()} flights</span></div>`;
+          posTT(ev.clientX, ev.clientY);
+        })
+        .on('mouseleave', () => hideTT());
+    });
+
+    // Overall rate label on right
+    g.append('text')
+      .attr('x', innerW + 7).attr('y', cy)
+      .attr('dominant-baseline', 'middle')
+      .attr('fill', '#555').attr('font-size', narrow ? 10 : 11)
+      .text(`${(c.overall_late_rate * 100).toFixed(1)}%`);
+  });
+}
+
+draw();
+
+let raf = 0;
+const ro = new ResizeObserver(() => {
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(draw);
+});
+ro.observe(root);
+</script>
+
+<style is:global>
+  #cot-tt {
+    position: fixed;
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+    background: rgba(15, 17, 23, 0.95);
+    border: 1px solid #2a2d3a;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.78rem;
+    color: #e8e8e8;
+    min-width: 160px;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  }
+  #cot-tt .cot-tt-name {
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.3rem;
+    font-size: 0.82rem;
+  }
+  #cot-tt .cot-tt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.25rem;
+    color: #aaa;
+    font-variant-numeric: tabular-nums;
+  }
+  #cot-tt .cot-tt-vol {
+    margin-top: 0.2rem;
+    padding-top: 0.2rem;
+    border-top: 1px solid #2a2d3a;
+    color: #666;
+    justify-content: center;
+  }
+</style>
+
+<style>
+  #cot-root svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+</style>

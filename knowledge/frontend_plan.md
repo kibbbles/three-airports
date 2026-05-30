@@ -34,7 +34,7 @@ No React, no UI framework, no iframes.
 | 7 | Forecasts | `ForecastChart.astro` | ✅ shipped |
 | 8 | Cancellations | `CancellationChart.astro` | ✅ shipped |
 | 9 | Weather and delays | `WeatherDelays.astro` | 🔲 planned |
-| 10 | Carrier on-time | `CarrierOnTime.astro` | 🔲 planned |
+| 10 | Carrier on-time | `CarrierOnTime.astro` | ✅ shipped |
 | 11 | Conclusion | inline in `index.astro` | 🔲 planned |
 | 12 | Limitations | inline in `index.astro` | ✅ shipped (move to end) |
 
@@ -109,6 +109,7 @@ No React, no UI framework, no iframes.
 | `forecasts.json` | Forecast chart |
 | `carrier_breakdown.json` | Airline breakdown (donut + fare bars) |
 | `hub_premium.json` | Airline breakdown (lollipop / beeswarm) |
+| `carrier_ontime.json` | Carrier on-time dot plot |
 
 ---
 
