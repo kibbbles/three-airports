@@ -204,7 +204,13 @@ function drawRidgeline() {
 
 drawWaffles();
 drawRidgeline();
-window.addEventListener('resize', () => { drawWaffles(); drawRidgeline(); });
+
+let raf = 0;
+const ro = new ResizeObserver(() => {
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => { drawWaffles(); drawRidgeline(); });
+});
+ro.observe(root);
 </script>
 
 <style>
@@ -272,6 +278,10 @@ window.addEventListener('resize', () => { drawWaffles(); drawRidgeline(); });
     color: var(--text);
     letter-spacing: 0.03em;
     text-transform: uppercase;
+  }
+
+  #ridgeline-chart {
+    width: 100%;
   }
 
   #ridgeline-chart svg {
