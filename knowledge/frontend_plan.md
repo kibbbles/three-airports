@@ -35,7 +35,7 @@ No React, no UI framework, no iframes.
 | 8 | Cancellations | `CancellationChart.astro` | ✅ shipped |
 | 9 | Weather and delays | `WeatherDelays.astro` | 🔲 planned |
 | 10 | Carrier on-time | `CarrierOnTime.astro` | ✅ shipped |
-| 11 | Conclusion | inline in `index.astro` | 🔲 planned |
+| 11 | Conclusion | inline in `index.astro` | ✅ shipped |
 | 12 | Limitations | inline in `index.astro` | ✅ shipped (move to end) |
 
 ---

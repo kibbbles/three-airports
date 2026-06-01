@@ -43,6 +43,7 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
       <li><a href="#cancellations">Cancellations</a></li>
       <li><a href="#weather">Weather and delays</a></li>
       <li><a href="#carrier-ontime">Carrier on-time</a></li>
+      <li><a href="#conclusion">Wrap-up</a></li>
       <li><a href="#limitations">Limitations</a></li>
     </ol>
   </nav>
@@ -405,6 +406,43 @@ function fmtk(n: number) { return n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 
     </div>
     <div class="section-chart full-bleed">
       <CarrierOnTime />
+    </div>
+  </section>
+
+  <!-- ── Section 11: Conclusion ─────────────────────────────────── -->
+  <section id="conclusion">
+    <div class="prose">
+      <h2>So, does IAD earn it?</h2>
+      <p>
+        On fares, no — not in any airport-specific way. BWI is cheaper on 44 of the 52 routes
+        all three airports share. But the gap traces back to carrier mix, not the airport itself.
+        A 68% United airport averaging higher fares than a 60% Southwest airport isn't a surprise;
+        that's just what those carriers charge. If you're flying Southwest and picking between IAD
+        and BWI, IAD is actually cheaper on most shared routes, because Southwest prices
+        competitively where it doesn't dominate. The airport you fly from is mostly a downstream
+        consequence of which carrier you're already on.
+      </p>
+      <p>
+        Reliability is messier. IAD had the least post-pandemic fallout of the three — fewest
+        structurally broken routes, late-arrival rate close to forecast since 2022. BWI had the
+        rougher recovery but has come back. DCA is the one I'd flag: PSA's 25% late rate and 6.6%
+        cancellation rate in 2025 make any American Eagle regional out of Reagan a real gamble,
+        and that problem is airport-specific in a way the others aren't. The bigger factor across
+        all three airports is the carrier you're on. Delta runs 12–14% late regardless of which
+        one you use. Frontier runs 28–31% regardless. The airport matters less than the ticket.
+      </p>
+      <p>
+        The Tokyo thing is still unresolved. DB1B doesn't cover international itineraries, so I
+        can't say whether finding a cheaper fare out of BWI to Japan is systematic or just lucky
+        timing. The domestic data does suggest that hub economics create asymmetric pricing —
+        United behaves differently at a 60% stake airport than at its 68% IAD hub — but I can't
+        prove that extends to international fares with what's here.
+      </p>
+      <p>
+        What I'll actually do differently: book morning flights when I can, especially in summer.
+        Fall for anything where a cancellation would be a real problem. Delta anywhere if reliability
+        matters more than price. And if I'm flying United to Taiwan, I'll at least check BWI first.
+      </p>
     </div>
   </section>
 
